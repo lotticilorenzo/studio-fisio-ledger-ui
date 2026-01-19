@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
 import { AppHeader } from '@/components/AppHeader';
+import { useAuth } from '@/components/AuthProvider';
 
 function AdminNav() {
   const pathname = usePathname();
@@ -41,42 +41,17 @@ function AdminNav() {
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const [ok, setOk] = useState(false);
+  const { user, role, loading } = useAuth();
 
+  // Redirect operator to /op if they try to access /admin
   useEffect(() => {
-    (async () => {
-      const { data: userRes } = await supabase.auth.getUser();
-      const user = userRes?.user;
+    if (!loading && user && role && role !== 'owner' && role !== 'admin') {
+      router.replace('/op/appointments');
+    }
+  }, [loading, user, role, router]);
 
-      if (!user) {
-        router.replace('/login');
-        return;
-      }
-
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error || !profile?.role) {
-        router.replace('/login');
-        return;
-      }
-
-      const role = profile.role as string;
-
-      if (role !== 'owner' && role !== 'admin') {
-        router.replace('/op/appointments');
-        return;
-      }
-
-      setOk(true);
-    })();
-  }, [router, pathname]);
-
-  if (!ok) {
+  // Loading state
+  if (loading || !user) {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -85,6 +60,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </main>
     );
+  }
+
+  // Role check: operator should not see admin area
+  if (role !== 'owner' && role !== 'admin') {
+    return null; // Will redirect in useEffect
   }
 
   return (
@@ -97,4 +77,3 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     </div>
   );
 }
-

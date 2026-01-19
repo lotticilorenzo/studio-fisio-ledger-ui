@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabaseClient';
 import { AppHeader } from '@/components/AppHeader';
+import { useAuth } from '@/components/AuthProvider';
 
 function OpNav() {
     const pathname = usePathname();
@@ -39,37 +39,10 @@ function OpNav() {
 }
 
 export default function OpLayout({ children }: { children: React.ReactNode }) {
-    const router = useRouter();
-    const pathname = usePathname();
-    const [ok, setOk] = useState(false);
+    const { user, loading } = useAuth();
 
-    useEffect(() => {
-        (async () => {
-            const { data: userRes } = await supabase.auth.getUser();
-            const user = userRes?.user;
-
-            if (!user) {
-                router.replace('/login');
-                return;
-            }
-
-            const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('role')
-                .eq('user_id', user.id)
-                .single();
-
-            if (error || !profile?.role) {
-                router.replace('/login');
-                return;
-            }
-
-            // Admin/Owner can also access /op routes
-            setOk(true);
-        })();
-    }, [router, pathname]);
-
-    if (!ok) {
+    // AuthProvider gestisce i redirect, qui solo loading check
+    if (loading || !user) {
         return (
             <main className="min-h-screen flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
@@ -90,4 +63,3 @@ export default function OpLayout({ children }: { children: React.ReactNode }) {
         </div>
     );
 }
-
