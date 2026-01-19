@@ -16,7 +16,7 @@ type AppointmentRow = {
   commission_rate: number;
   operators?: { display_name: string } | null;
   services?: { name: string } | null;
-  patients?: { full_name: string } | null;
+  patients?: { display_name: string } | null;
 };
 
 type OperatorSummary = {
@@ -85,7 +85,7 @@ export default function AdminAppointmentsPage() {
         commission_amount_cents,
         operators:operator_id ( display_name ),
         services:service_id ( name ),
-        patients:patient_id ( full_name )
+        patients:patient_id ( display_name )
       `
       )
       .gte('starts_at', start.toISOString())
@@ -93,7 +93,7 @@ export default function AdminAppointmentsPage() {
       .order('starts_at', { ascending: false });
 
     if (error) setErr(humanError(error.message));
-    setRows((data as any) ?? []);
+    setRows((data as unknown as AppointmentRow[]) ?? []);
 
     // Carica riepilogo per operatore
     const { data: summaryData, error: summaryError } = await supabase.rpc('admin_month_summary', {
@@ -107,10 +107,6 @@ export default function AdminAppointmentsPage() {
     setLoading(false);
   }
 
-  async function logout() {
-    await supabase.auth.signOut();
-    router.replace('/login');
-  }
 
   function exportCSV() {
     if (rows.length === 0) return;
@@ -122,7 +118,7 @@ export default function AdminAppointmentsPage() {
         new Date(r.starts_at).toLocaleString('it-IT'),
         r.operators?.display_name ?? '-',
         r.services?.name ?? '-',
-        r.patients?.full_name ?? '-',
+        r.patients?.display_name ?? '-',
         statusLabel(r.status),
         (r.gross_amount_cents / 100).toFixed(2),
         (r.commission_amount_cents / 100).toFixed(2),
@@ -339,7 +335,7 @@ export default function AdminAppointmentsPage() {
                     <td className="p-3">{new Date(r.starts_at).toLocaleString('it-IT')}</td>
                     <td className="p-3">{r.operators?.display_name ?? '-'}</td>
                     <td className="p-3">{r.services?.name ?? '-'}</td>
-                    <td className="p-3">{r.patients?.full_name ?? '-'}</td>
+                    <td className="p-3">{r.patients?.display_name ?? '-'}</td>
                     <td className="p-3">{statusLabel(r.status)}</td>
                     <td className="p-3 text-right">{eur(r.gross_amount_cents ?? 0)}</td>
                     <td className="p-3 text-right">
