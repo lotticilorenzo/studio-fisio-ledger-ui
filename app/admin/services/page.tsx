@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { humanError } from '@/lib/humanError';
+import { EmptyState, emptyStates } from '@/components/EmptyState';
 
 interface Service {
     id: string;
@@ -220,8 +221,18 @@ export default function AdminServicesPage() {
                     <tbody className="divide-y divide-neutral-700/50">
                         {services.length === 0 ? (
                             <tr>
-                                <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
-                                    Nessun servizio trovato. Crea il primo!
+                                <td colSpan={4}>
+                                    <EmptyState
+                                        {...emptyStates.noServices}
+                                        action={
+                                            <button
+                                                onClick={() => setShowForm(true)}
+                                                className="btn btn-primary"
+                                            >
+                                                + Crea Servizio
+                                            </button>
+                                        }
+                                    />
                                 </td>
                             </tr>
                         ) : (

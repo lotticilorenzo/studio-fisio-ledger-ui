@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
+import { EmptyState, emptyStates } from '@/components/EmptyState';
 
 type Row = {
   id: string;
@@ -154,16 +155,25 @@ export default function OperatorAppointmentsPage() {
       {!loading && !error && (
         <div className="mt-4 space-y-3">
           {filteredRows.length === 0 ? (
-            <div className="text-center py-8 opacity-70">
-              Nessun appuntamento {filter === 'today' ? 'per oggi' : filter === 'tomorrow' ? 'per domani' : ''}.
-            </div>
+            <EmptyState
+              {...(filter === 'today' ? emptyStates.noAppointmentsToday :
+                filter === 'tomorrow' ? emptyStates.noAppointmentsTomorrow :
+                  emptyStates.noAppointments)}
+              action={
+                <button
+                  onClick={() => router.push('/op/appointments/new')}
+                  className="btn btn-primary"
+                >
+                  + Nuovo Appuntamento
+                </button>
+              }
+            />
           ) : (
             filteredRows.map((r) => (
               <div
                 key={r.id}
                 onClick={() => router.push(`/op/appointments/${r.id}`)}
-                className={`border rounded-lg p-4 cursor-pointer hover:bg-white/5 transition ${r.status === 'cancelled' ? 'opacity-50' : ''
-                  }`}
+                className={`border rounded-lg p-4 cursor-pointer hover:bg-white/5 transition ${r.status === 'cancelled' ? 'opacity-50' : ''}`}
               >
                 <div className="flex justify-between items-start gap-2">
                   <div className="flex-1 min-w-0">

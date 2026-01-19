@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins, Nunito } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import { ToastProvider } from "@/components/Toast";
 
 const poppins = Poppins({
   weight: ["500", "600", "700"],
@@ -21,13 +22,6 @@ export const metadata: Metadata = {
   title: "Studio FISYO - Gestionale Appuntamenti",
   description: "Sistema di gestione appuntamenti per Studio FISYO",
   manifest: "/manifest.webmanifest",
-  themeColor: "#facc15",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -37,6 +31,14 @@ export const metadata: Metadata = {
     icon: "/brand/icon-192.png",
     apple: "/brand/icon-512.png",
   },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#facc15",
 };
 
 export default function RootLayout({
@@ -50,9 +52,10 @@ export default function RootLayout({
         className={`${poppins.variable} ${nunito.variable} antialiased`}
         style={{ fontFamily: "var(--font-nunito), sans-serif" }}
       >
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );
 }
-
