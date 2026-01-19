@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { humanError } from "@/lib/humanError";
@@ -61,12 +62,14 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo / Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-500 mb-4 shadow-lg shadow-yellow-500/20">
-            <span className="text-4xl">🏥</span>
-          </div>
-          <h1 className="text-3xl font-bold brand-text">
-            Studio FISYO
-          </h1>
+          <Image
+            src="/brand/logo.png"
+            alt="Studio FISYO"
+            width={120}
+            height={120}
+            className="mx-auto mb-4"
+            priority
+          />
           <p className="text-gray-400 mt-2">Gestionale Appuntamenti</p>
         </div>
 

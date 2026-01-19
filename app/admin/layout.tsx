@@ -4,39 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
-
-function AdminHeader() {
-  const router = useRouter();
-
-  async function logout() {
-    await supabase.auth.signOut();
-    router.replace('/login');
-  }
-
-  return (
-    <header className="border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-xl sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center shadow-lg shadow-yellow-500/20">
-            <span className="text-lg">🏥</span>
-          </div>
-          <div>
-            <h1 className="font-bold text-lg brand-text">
-              Studio FISYO
-            </h1>
-            <p className="text-xs text-gray-400">Area Amministrazione</p>
-          </div>
-        </div>
-        <button
-          onClick={logout}
-          className="px-4 py-2 rounded-lg border border-neutral-600 text-gray-300 text-sm hover:bg-neutral-800 transition-all"
-        >
-          Esci
-        </button>
-      </div>
-    </header>
-  );
-}
+import { AppHeader } from '@/components/AppHeader';
 
 function AdminNav() {
   const pathname = usePathname();
@@ -121,7 +89,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen">
-      <AdminHeader />
+      <AppHeader subtitle="Area Amministrazione" variant="admin" />
       <AdminNav />
       <div className="max-w-7xl mx-auto">
         {children}

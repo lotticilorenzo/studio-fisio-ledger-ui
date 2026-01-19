@@ -13,5 +13,5 @@ Palette Supporto:
 2. TIPOGRAFIA (FONT)
 - Titoli (Headings): Poppins
 - Testo (Body): Nunito
-
-Logo URL: https://drive.google.com/file/d/1G_-nseDMTjJwQRwjmcJjq-AV6SR82qSu/view?usp=sharing
+ 
+Logo path: public/brand/logo.png
