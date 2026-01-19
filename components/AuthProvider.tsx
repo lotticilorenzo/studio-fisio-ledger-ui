@@ -50,17 +50,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         let mounted = true;
 
-        // Initial session check
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            if (!mounted) return;
+        // Initial session check with error handling
+        async function initAuth() {
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                if (!mounted) return;
 
-            if (session?.user) {
-                const role = await fetchRole(session.user.id);
-                setState({ user: session.user, role, loading: false });
-            } else {
-                setState({ user: null, role: null, loading: false });
+                if (error) {
+                    console.error("Auth getSession error:", error);
+                    setState({ user: null, role: null, loading: false });
+                    return;
+                }
+
+                if (session?.user) {
+                    try {
+                        const role = await fetchRole(session.user.id);
+                        setState({ user: session.user, role, loading: false });
+                    } catch (roleError) {
+                        console.error("fetchRole error:", roleError);
+                        // User exists but couldn't fetch role - proceed anyway
+                        setState({ user: session.user, role: null, loading: false });
+                    }
+                } else {
+                    setState({ user: null, role: null, loading: false });
+                }
+            } catch (err) {
+                console.error("Auth init error:", err);
+                if (mounted) {
+                    setState({ user: null, role: null, loading: false });
+                }
             }
-        });
+        }
+
+        initAuth();
 
         // Listen to auth changes (login/logout/token refresh)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -68,8 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 if (!mounted) return;
 
                 if (session?.user) {
-                    const role = await fetchRole(session.user.id);
-                    setState({ user: session.user, role, loading: false });
+                    try {
+                        const role = await fetchRole(session.user.id);
+                        setState({ user: session.user, role, loading: false });
+                    } catch (roleError) {
+                        console.error("fetchRole error on auth change:", roleError);
+                        setState({ user: session.user, role: null, loading: false });
+                    }
                 } else {
                     setState({ user: null, role: null, loading: false });
                 }
