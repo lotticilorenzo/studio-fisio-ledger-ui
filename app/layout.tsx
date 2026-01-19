@@ -20,6 +20,23 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: "Studio FISYO - Gestionale Appuntamenti",
   description: "Sistema di gestione appuntamenti per Studio FISYO",
+  manifest: "/manifest.webmanifest",
+  themeColor: "#facc15",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "FISYO",
+  },
+  icons: {
+    icon: "/brand/icon-192.png",
+    apple: "/brand/icon-512.png",
+  },
 };
 
 export default function RootLayout({
