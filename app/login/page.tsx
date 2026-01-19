@@ -4,13 +4,20 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { humanError } from "@/lib/humanError";
+import { useAuth } from "@/components/AuthProvider";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { user, role, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // If already logged in, AuthProvider handles redirect - show nothing
+  if (authLoading || user) {
+    return null;
+  }
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins, Nunito } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/components/AuthProvider";
 
 const poppins = Poppins({
   weight: ["500", "600", "700"],
@@ -32,7 +33,7 @@ export default function RootLayout({
         className={`${poppins.variable} ${nunito.variable} antialiased`}
         style={{ fontFamily: "var(--font-nunito), sans-serif" }}
       >
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );
