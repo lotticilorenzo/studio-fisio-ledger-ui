@@ -69,15 +69,16 @@ export default function OpEditAppointmentPage() {
       }
       setServices((servicesData ?? []) as Service[]);
 
-      // carica lista appuntamenti OP e trova quello giusto
-      const { data, error } = await supabase.rpc('get_my_appointments_op', { p_limit: 500 });
+      // Carica singolo appuntamento via RPC (solo se appartiene all'operatore)
+      const { data, error } = await supabase.rpc('get_appointment_by_id_op', { p_id: id });
       if (error) {
         setErr(humanError(error.message));
         setLoading(false);
         return;
       }
 
-      const found = (data ?? []).find((x: any) => x.id === id);
+      // RPC ritorna array, prendiamo il primo (o null se non trovato)
+      const found = Array.isArray(data) && data.length > 0 ? data[0] : null;
       if (!found) {
         setErr('Appuntamento non trovato o non autorizzato.');
         setLoading(false);

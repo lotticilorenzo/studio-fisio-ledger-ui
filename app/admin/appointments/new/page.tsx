@@ -79,37 +79,19 @@ export default function NewAppointmentPage() {
 
     const gross_amount_cents = Math.round(eur * 100);
 
-    const rate = selectedOperator?.commission_rate ?? 0;
-    const commission_rate = rate;
-    const commission_amount_cents = Math.round(gross_amount_cents * commission_rate);
-
-    // datetime-local -> ISO. Aggiungo ":00" se manca
+    // datetime-local -> ISO
     const iso = startsAt.length === 16 ? `${startsAt}:00` : startsAt;
     const starts_at = new Date(iso).toISOString();
 
-    // Prima crea/trova il paziente se specificato
-    let patient_id: string | null = null;
-    if (patientName.trim()) {
-      const { data: patientData, error: patientErr } = await supabase
-        .from("patients")
-        .insert({ full_name: patientName.trim() })
-        .select("id")
-        .single();
-
-      if (patientErr) return setError(patientErr.message);
-      patient_id = patientData.id;
-    }
-
-    const { error } = await supabase.from("appointments").insert({
-      operator_id: operatorId,
-      service_id: serviceId || null,
-      patient_id,
-      starts_at,
-      status,
-      gross_amount_cents,
-      commission_rate,
-      commission_amount_cents,
-      notes: notes || null,
+    // Usa RPC server-side per calcolo commissioni
+    const { error } = await supabase.rpc('admin_create_appointment', {
+      p_operator_id: operatorId,
+      p_service_id: serviceId || null,
+      p_patient_name: patientName.trim() || null,
+      p_starts_at: starts_at,
+      p_status: status,
+      p_gross_amount_cents: gross_amount_cents,
+      p_notes: notes || null,
     });
 
     if (error) return setError(error.message);
