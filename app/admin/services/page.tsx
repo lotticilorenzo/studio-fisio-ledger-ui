@@ -207,7 +207,7 @@ export default function AdminServicesPage() {
             )}
 
             {/* Services Table */}
-            <div className="rounded-2xl border border-neutral-700/50 overflow-hidden">
+            <div className="table-responsive">
                 <table className="w-full">
                     <thead className="bg-neutral-800/50">
                         <tr>

@@ -109,45 +109,33 @@ export default function OperatorAppointmentsPage() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => router.push('/op/appointments/new')}
-            className="border rounded px-3 py-2 bg-blue-600 text-white"
+            className="btn btn-primary"
           >
             + Nuovo
           </button>
-          <button onClick={load} className="border rounded px-3 py-2">
+          <button onClick={load} className="btn btn-secondary">
             ↻
-          </button>
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              router.replace('/login');
-            }}
-            className="border rounded px-3 py-2 text-sm"
-          >
-            Logout
           </button>
         </div>
       </div>
 
       {/* Filtri */}
-      <div className="mt-4 flex gap-2 overflow-x-auto">
+      <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
         <button
           onClick={() => setFilter('today')}
-          className={`px-4 py-2 rounded border whitespace-nowrap ${filter === 'today' ? 'bg-blue-600 text-white border-blue-600' : ''
-            }`}
+          className={`btn whitespace-nowrap ${filter === 'today' ? 'btn-primary' : 'btn-secondary'}`}
         >
           Oggi
         </button>
         <button
           onClick={() => setFilter('tomorrow')}
-          className={`px-4 py-2 rounded border whitespace-nowrap ${filter === 'tomorrow' ? 'bg-blue-600 text-white border-blue-600' : ''
-            }`}
+          className={`btn whitespace-nowrap ${filter === 'tomorrow' ? 'btn-primary' : 'btn-secondary'}`}
         >
           Domani
         </button>
         <button
           onClick={() => setFilter('all')}
-          className={`px-4 py-2 rounded border whitespace-nowrap ${filter === 'all' ? 'bg-blue-600 text-white border-blue-600' : ''
-            }`}
+          className={`btn whitespace-nowrap ${filter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
         >
           Tutti (50)
         </button>
@@ -185,8 +173,8 @@ export default function OperatorAppointmentsPage() {
                   <div className="text-right">
                     <div className="font-semibold">{eur(r.gross_amount_cents ?? 0)}</div>
                     <div className={`text-xs px-2 py-0.5 rounded ${r.status === 'completed' ? 'bg-green-600' :
-                        r.status === 'cancelled' ? 'bg-red-600' :
-                          r.status === 'scheduled' ? 'bg-blue-600' : 'bg-gray-600'
+                      r.status === 'cancelled' ? 'bg-red-600' :
+                        r.status === 'scheduled' ? 'bg-blue-600' : 'bg-gray-600'
                       }`}>
                       {statusLabel(r.status)}
                     </div>

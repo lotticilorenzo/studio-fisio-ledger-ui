@@ -164,7 +164,7 @@ export default function AdminOperatorsPage() {
                         <label className="block text-sm mb-1">Email utente (già registrato)</label>
                         <input
                             type="email"
-                            className="w-full border rounded px-3 py-2 bg-transparent"
+                            className="input-field"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="operatore@esempio.com"
@@ -176,7 +176,7 @@ export default function AdminOperatorsPage() {
                         <label className="block text-sm mb-1">Nome visualizzato</label>
                         <input
                             type="text"
-                            className="w-full border rounded px-3 py-2 bg-transparent"
+                            className="input-field"
                             value={displayName}
                             onChange={(e) => setDisplayName(e.target.value)}
                             placeholder="Es. Dott. Mario Rossi"
@@ -191,7 +191,7 @@ export default function AdminOperatorsPage() {
                             min="0"
                             max="100"
                             step="1"
-                            className="w-full border rounded px-3 py-2 bg-transparent"
+                            className="input-field"
                             value={commissionRate}
                             onChange={(e) => setCommissionRate(e.target.value)}
                             placeholder="20"
@@ -216,7 +216,7 @@ export default function AdminOperatorsPage() {
                     <button
                         type="submit"
                         disabled={saving}
-                        className="w-full px-4 py-2 rounded border bg-blue-600 text-white disabled:opacity-50"
+                        className="btn btn-primary w-full disabled:opacity-50"
                     >
                         {saving ? 'Collego...' : 'Collega Operatore'}
                     </button>
@@ -234,7 +234,7 @@ export default function AdminOperatorsPage() {
                 )}
 
                 {!loading && operators.length > 0 && (
-                    <div className="overflow-auto rounded border">
+                    <div className="table-responsive">
                         <table className="min-w-full text-sm">
                             <thead className="border-b bg-white/5">
                                 <tr>

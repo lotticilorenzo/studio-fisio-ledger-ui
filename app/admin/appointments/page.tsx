@@ -225,32 +225,29 @@ export default function AdminAppointmentsPage() {
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => router.push('/admin/appointments/new')}
-            className="px-3 py-2 rounded border bg-blue-600 text-white"
+            className="btn btn-primary"
           >
             + Nuovo
-          </button>
-          <button onClick={logout} className="px-3 py-2 rounded border">
-            Logout
           </button>
         </div>
       </div>
 
       {/* Filtro Mese */}
-      <div className="mt-4 flex flex-wrap gap-3 items-center">
+      <div className="mt-4 flex flex-wrap gap-2 items-center">
         <label className="text-sm">Mese:</label>
         <input
           type="month"
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
-          className="border rounded px-3 py-2 bg-transparent"
+          className="input-field max-w-[180px]"
         />
-        <button onClick={exportCSV} className="px-3 py-2 rounded border bg-green-600 text-white">
+        <button onClick={exportCSV} className="btn btn-secondary">
           📥 CSV
         </button>
-        <button onClick={exportPDF} className="px-3 py-2 rounded border bg-red-600 text-white">
+        <button onClick={exportPDF} className="btn btn-danger">
           📄 PDF
         </button>
-        <button onClick={() => load(selectedMonth)} className="px-3 py-2 rounded border">
+        <button onClick={() => load(selectedMonth)} className="btn btn-secondary">
           ↻ Ricarica
         </button>
       </div>
@@ -319,7 +316,7 @@ export default function AdminAppointmentsPage() {
       )}
 
       {!loading && !err && (
-        <div className="mt-6 overflow-auto rounded border">
+        <div className="mt-6 table-responsive">
           <table className="min-w-full text-sm">
             <thead className="border-b bg-white/5">
               <tr>

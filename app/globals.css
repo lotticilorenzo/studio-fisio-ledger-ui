@@ -156,3 +156,131 @@ nav a.active {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* ============================================
+   TOUCH-FRIENDLY UTILITIES
+   ============================================ */
+
+/* Buttons - minimum touch target 44px */
+.btn {
+  min-height: 44px;
+  padding: 0.625rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand-yellow) 0%, var(--brand-orange) 100%);
+  color: var(--brand-black);
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 4px 12px rgba(244, 241, 25, 0.3);
+}
+
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--foreground);
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  filter: brightness(1.1);
+}
+
+/* Form inputs - touch friendly */
+.input-field {
+  min-height: 44px;
+  padding: 0.625rem 0.875rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 0.5rem;
+  color: var(--foreground);
+  font-size: 1rem;
+  width: 100%;
+  transition: all 0.2s ease;
+}
+
+.input-field:focus {
+  border-color: var(--brand-yellow);
+  box-shadow: 0 0 0 3px rgba(244, 241, 25, 0.15);
+  outline: none;
+}
+
+/* Responsive table container */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.table-responsive table {
+  min-width: 600px;
+}
+
+.table-responsive th,
+.table-responsive td {
+  padding: 0.75rem 1rem;
+  white-space: nowrap;
+}
+
+.table-responsive th:first-child,
+.table-responsive td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--background);
+  z-index: 1;
+}
+
+.table-responsive thead {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.table-responsive tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Cards - touch friendly */
+.card-touch {
+  padding: 1rem;
+  border-radius: 0.75rem;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.card-touch:active {
+  transform: scale(0.98);
+}
+
+/* Mobile-first spacing */
+@media (max-width: 640px) {
+  .btn {
+    width: 100%;
+  }
+
+  .table-responsive th,
+  .table-responsive td {
+    padding: 0.625rem 0.75rem;
+    font-size: 0.875rem;
+  }
+}
