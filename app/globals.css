@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+
+:root {
+  /* Brand Colors - Studio FISYO */
+  --brand-yellow: #f4f119;
+  --brand-orange: #ff9900;
+  --brand-black: #000000;
+  --brand-white: #ffffff;
+  --brand-gray: #9e9eaa;
+  --brand-sage: #a4b494;
+
+  /* Semantic Colors */
+  --background: #0f0f0f;
+  --foreground: #ffffff;
+  --primary: var(--brand-yellow);
+  --primary-hover: #e6e316;
+  --accent: var(--brand-orange);
+  --success: #22c55e;
+  --warning: var(--brand-orange);
+  --danger: #ef4444;
+  --card-bg: rgba(20, 20, 20, 0.9);
+  --border: rgba(244, 241, 25, 0.15);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Typography */
+body {
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+  background-attachment: fixed;
+  color: var(--foreground);
+  font-family: var(--font-nunito), 'Nunito', sans-serif;
+  min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-poppins), 'Poppins', sans-serif;
+  font-weight: 600;
+}
+
+/* Premium card styling */
+.card {
+  background: var(--card-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(244, 241, 25, 0.05);
+}
+
+/* Button styles */
+button {
+  transition: all 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Input focus glow - brand yellow */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--brand-yellow) !important;
+  box-shadow: 0 0 0 3px rgba(244, 241, 25, 0.15);
+}
+
+/* Table hover effect */
+tr:hover {
+  background: rgba(244, 241, 25, 0.03);
+}
+
+/* Status badge animations */
+.status-badge {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Loading animation */
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Nav link active state - brand yellow */
+nav a.active {
+  background: rgba(244, 241, 25, 0.15);
+  border-color: var(--brand-yellow);
+  color: var(--brand-yellow);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(244, 241, 25, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 241, 25, 0.4);
+}
+
+/* Brand gradient utility */
+.brand-gradient {
+  background: linear-gradient(135deg, var(--brand-yellow) 0%, var(--brand-orange) 100%);
+}
+
+.brand-text {
+  background: linear-gradient(135deg, var(--brand-yellow) 0%, var(--brand-orange) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
