@@ -47,10 +47,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="it">
+    <html lang="it" suppressHydrationWarning>
       <body
         className={`${poppins.variable} ${nunito.variable} antialiased`}
         style={{ fontFamily: "var(--font-nunito), sans-serif" }}
+        suppressHydrationWarning
       >
         <AuthProvider>
           <ToastProvider>{children}</ToastProvider>

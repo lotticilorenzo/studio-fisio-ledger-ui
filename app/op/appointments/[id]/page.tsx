@@ -4,18 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { humanError } from '@/lib/humanError';
+import { LoadingState, Spinner } from '@/components/ui/Loading';
 
 type Service = { id: string; name: string };
-type Row = {
-  id: string;
-  starts_at: string;
-  status: string;
-  service_id: string | null;
-  service_name: string | null;
-  patient_name: string | null;
-  gross_amount_cents: number;
-  notes: string | null;
-};
 
 export default function OpEditAppointmentPage() {
   const router = useRouter();
@@ -23,16 +14,13 @@ export default function OpEditAppointmentPage() {
   const id = params?.id;
 
   const [services, setServices] = useState<Service[]>([]);
-  const [row, setRow] = useState<Row | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  // form
   const [startsAt, setStartsAt] = useState<string>('');
   const [serviceId, setServiceId] = useState<string>('');
-  const [patientName, setPatientName] = useState<string>(''); // MVP: solo nome (disabled)
+  const [patientName, setPatientName] = useState<string>('');
   const [grossEuro, setGrossEuro] = useState<string>('0');
   const [notes, setNotes] = useState<string>('');
   const [status, setStatus] = useState<string>('scheduled');
@@ -45,22 +33,13 @@ export default function OpEditAppointmentPage() {
   function toDatetimeLocal(iso: string) {
     const d = new Date(iso);
     const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-      d.getHours()
-    )}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   useEffect(() => {
     (async () => {
       setErr(null);
 
-      const { data: u } = await supabase.auth.getUser();
-      if (!u?.user) {
-        router.replace('/login');
-        return;
-      }
-
-      // carica servizi dell'operatore corrente
       const { data: servicesData, error: servicesError } = await supabase.rpc('get_my_services_op');
       if (servicesError) {
         setErr(humanError(servicesError.message));
@@ -69,7 +48,6 @@ export default function OpEditAppointmentPage() {
       }
       setServices((servicesData ?? []) as Service[]);
 
-      // Carica singolo appuntamento via RPC (solo se appartiene all'operatore)
       const { data, error } = await supabase.rpc('get_appointment_by_id_op', { p_id: id });
       if (error) {
         setErr(humanError(error.message));
@@ -77,7 +55,6 @@ export default function OpEditAppointmentPage() {
         return;
       }
 
-      // RPC ritorna array, prendiamo il primo (o null se non trovato)
       const found = Array.isArray(data) && data.length > 0 ? data[0] : null;
       if (!found) {
         setErr('Appuntamento non trovato o non autorizzato.');
@@ -85,30 +62,20 @@ export default function OpEditAppointmentPage() {
         return;
       }
 
-      setRow(found as Row);
-
       setStartsAt(toDatetimeLocal(found.starts_at));
       setServiceId(found.service_id ?? '');
       setGrossEuro(((found.gross_amount_cents ?? 0) / 100).toFixed(2));
       setNotes(found.notes ?? '');
       setStatus(found.status ?? 'scheduled');
       setPatientName(found.patient_name ?? '');
-
       setLoading(false);
     })();
-  }, [id, router]);
+  }, [id]);
 
   async function save() {
     if (!id) return;
-
     setSaving(true);
     setErr(null);
-
-    const { data: u } = await supabase.auth.getUser();
-    if (!u?.user) {
-      router.replace('/login');
-      return;
-    }
 
     const { error } = await supabase.rpc('op_update_appointment', {
       p_appointment_id: id,
@@ -131,24 +98,13 @@ export default function OpEditAppointmentPage() {
   async function cancel() {
     if (!id) return;
 
-    // Conferma prima di disdire
-    const conferma = window.confirm(
-      'Sei sicuro di voler disdire questo appuntamento?\n\nQuesta azione non può essere annullata.'
-    );
+    const conferma = window.confirm('Sei sicuro di voler disdire questo appuntamento?\n\nQuesta azione non può essere annullata.');
     if (!conferma) return;
 
     setSaving(true);
     setErr(null);
 
-    const { data: u } = await supabase.auth.getUser();
-    if (!u?.user) {
-      router.replace('/login');
-      return;
-    }
-
-    const { error } = await supabase.rpc('op_cancel_appointment', {
-      p_appointment_id: id,
-    });
+    const { error } = await supabase.rpc('op_cancel_appointment', { p_appointment_id: id });
 
     if (error) {
       setErr(humanError(error.message));
@@ -159,103 +115,115 @@ export default function OpEditAppointmentPage() {
     router.replace('/op/appointments');
   }
 
-  if (loading) return <main className="p-6">Carico…</main>;
+  if (loading) {
+    return <LoadingState />;
+  }
 
   return (
-    <main className="p-6 max-w-xl">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Modifica appuntamento</h1>
-        <button className="border rounded px-3 py-2" onClick={() => router.back()}>
-          Indietro
+    <div className="fade-in">
+      {/* Header */}
+      <div className="page-header">
+        <h1 className="page-title">Modifica appuntamento</h1>
+        <button className="btn btn-ghost btn-sm" onClick={() => router.back()}>
+          ← Indietro
         </button>
       </div>
 
       {err && (
-        <div className="mt-4 border border-red-500 rounded p-3 text-red-200">
-          Errore: {err}
+        <div className="error-box mb-4">
+          ⚠️ {err}
         </div>
       )}
 
-      <div className="mt-6 space-y-4">
-        <div>
-          <label className="block text-sm mb-1">Data e ora</label>
+      <div className="card card-body">
+        <div className="form-group">
+          <label className="form-label">📅 Data e ora</label>
           <input
             type="datetime-local"
-            className="w-full border rounded px-3 py-2 bg-transparent"
+            className="form-input"
             value={startsAt}
             onChange={(e) => setStartsAt(e.target.value)}
           />
         </div>
 
-        <div>
-          <label className="block text-sm mb-1">Paziente</label>
+        <div className="form-group">
+          <label className="form-label">👤 Paziente</label>
           <input
-            className="w-full border rounded px-3 py-2 bg-transparent"
+            className="form-input"
             value={patientName}
-            onChange={(e) => setPatientName(e.target.value)}
             disabled
+            style={{ background: 'var(--bg-tertiary)' }}
           />
-          <p className="text-xs opacity-70 mt-1">(Per MVP non cambiamo il paziente qui.)</p>
+          <p className="form-hint">Il nome paziente non può essere modificato</p>
         </div>
 
-        <div>
-          <label className="block text-sm mb-1">Servizio</label>
+        <div className="form-group">
+          <label className="form-label">🏷️ Servizio</label>
           <select
-            className="w-full border rounded px-3 py-2 bg-transparent"
+            className="form-input form-select"
             value={serviceId}
             onChange={(e) => setServiceId(e.target.value)}
           >
             <option value="">Nessun servizio</option>
             {services.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
+              <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm mb-1">Stato</label>
+        <div className="form-group">
+          <label className="form-label">📊 Stato</label>
           <select
-            className="w-full border rounded px-3 py-2 bg-transparent"
+            className="form-input form-select"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
-            <option value="scheduled">Programmato</option>
+            <option value="scheduled">In programma</option>
             <option value="completed">Completato</option>
-            <option value="no_show">Non presentato</option>
+            <option value="no_show">Assente</option>
             <option value="cancelled">Disdetto</option>
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm mb-1">Importo lordo (€)</label>
+        <div className="form-group">
+          <label className="form-label">💰 Importo (€)</label>
           <input
-            className="w-full border rounded px-3 py-2 bg-transparent"
+            className="form-input"
             value={grossEuro}
             onChange={(e) => setGrossEuro(e.target.value)}
             inputMode="decimal"
           />
         </div>
 
-        <div>
-          <label className="block text-sm mb-1">Note</label>
+        <div className="form-group">
+          <label className="form-label">📝 Note</label>
           <textarea
-            className="w-full border rounded px-3 py-2 bg-transparent"
+            className="form-input"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
+            placeholder="Aggiungi note..."
           />
         </div>
 
-        <button onClick={save} disabled={saving} className="w-full border rounded px-3 py-2">
-          {saving ? 'Salvo…' : 'Salva modifiche'}
-        </button>
+        <div className="mt-4" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="btn btn-primary btn-full"
+          >
+            {saving ? <><Spinner size="sm" /> Salvataggio...</> : '✓ Salva modifiche'}
+          </button>
 
-        <button onClick={cancel} disabled={saving} className="w-full border rounded px-3 py-2">
-          Disdici appuntamento
-        </button>
+          <button
+            onClick={cancel}
+            disabled={saving}
+            className="btn btn-danger btn-full"
+          >
+            ✕ Disdici appuntamento
+          </button>
+        </div>
       </div>
-    </main>
+    </div>
   );
 }

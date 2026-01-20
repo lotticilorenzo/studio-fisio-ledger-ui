@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { EmptyState, emptyStates } from '@/components/EmptyState';
+import { Badge } from '@/components/ui/Badge';
+import { LoadingState } from '@/components/ui/Loading';
 
 type Row = {
   id: string;
@@ -19,14 +21,6 @@ type FilterType = 'today' | 'tomorrow' | 'all';
 
 function eur(cents: number) {
   return `€${((cents ?? 0) / 100).toFixed(2)}`;
-}
-
-function statusLabel(s: string) {
-  if (s === 'scheduled') return 'Programmato';
-  if (s === 'completed') return 'Completato';
-  if (s === 'cancelled') return 'Disdetto';
-  if (s === 'no_show') return 'Non presentato';
-  return s;
 }
 
 function formatDateIT(dateStr: string) {
@@ -59,12 +53,6 @@ export default function OperatorAppointmentsPage() {
     setLoading(true);
     setError(null);
 
-    const { data: userRes } = await supabase.auth.getUser();
-    if (!userRes?.user) {
-      router.replace('/login');
-      return;
-    }
-
     const { data, error } = await supabase.rpc('get_my_appointments_op', { p_limit: 50 });
 
     if (error) {
@@ -79,10 +67,8 @@ export default function OperatorAppointmentsPage() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Filtro client-side
   const filteredRows = useMemo(() => {
     const today = new Date();
     const tomorrow = new Date(today);
@@ -92,7 +78,7 @@ export default function OperatorAppointmentsPage() {
       const appointmentDate = new Date(r.starts_at);
       if (filter === 'today') return isSameDay(appointmentDate, today);
       if (filter === 'tomorrow') return isSameDay(appointmentDate, tomorrow);
-      return true; // 'all'
+      return true;
     });
   }, [rows, filter]);
 
@@ -102,58 +88,61 @@ export default function OperatorAppointmentsPage() {
   );
 
   return (
-    <main className="p-4 md:p-6 max-w-4xl mx-auto">
+    <div className="fade-in">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <h1 className="text-xl md:text-2xl font-semibold">I miei appuntamenti</h1>
-
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => router.push('/op/appointments/new')}
-            className="btn btn-primary"
-          >
-            + Nuovo
-          </button>
-          <button onClick={load} className="btn btn-secondary">
-            ↻
-          </button>
-        </div>
+      <div className="page-header">
+        <h1 className="page-title">I miei appuntamenti</h1>
+        <button
+          onClick={load}
+          className="btn btn-icon btn-ghost"
+          aria-label="Ricarica"
+        >
+          ↻
+        </button>
       </div>
 
-      {/* Filtri */}
-      <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+      {/* Filter Pills */}
+      <div className="filter-pills mb-4">
         <button
           onClick={() => setFilter('today')}
-          className={`btn whitespace-nowrap ${filter === 'today' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`filter-pill ${filter === 'today' ? 'active' : ''}`}
         >
-          Oggi
+          📅 Oggi
         </button>
         <button
           onClick={() => setFilter('tomorrow')}
-          className={`btn whitespace-nowrap ${filter === 'tomorrow' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`filter-pill ${filter === 'tomorrow' ? 'active' : ''}`}
         >
-          Domani
+          🗓️ Domani
         </button>
         <button
           onClick={() => setFilter('all')}
-          className={`btn whitespace-nowrap ${filter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+          className={`filter-pill ${filter === 'all' ? 'active' : ''}`}
         >
-          Tutti (50)
+          📋 Tutti
         </button>
       </div>
 
-      {/* Totale */}
-      <div className="mt-4 text-sm">
-        Totale lordo: <b>{eur(totalLordoCents)}</b> ({filteredRows.length} appuntamenti)
+      {/* Stats */}
+      <div className="stats-box mb-4">
+        <span className="text-sm text-secondary">Totale:</span>
+        <span className="stats-value">{eur(totalLordoCents)}</span>
+        <span className="text-xs text-muted">({filteredRows.length})</span>
       </div>
 
-      {/* Loading/Error */}
-      {loading && <div className="mt-6 text-center py-8">Carico…</div>}
-      {error && <div className="mt-6 text-red-400">Errore: {error}</div>}
+      {/* Loading */}
+      {loading && <LoadingState />}
 
-      {/* Lista Card (mobile-first) */}
+      {/* Error */}
+      {error && (
+        <div className="error-box mb-4">
+          ⚠️ Errore: {error}
+        </div>
+      )}
+
+      {/* List */}
       {!loading && !error && (
-        <div className="mt-4 space-y-3">
+        <div className="space-y-3 has-bottom-nav" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
           {filteredRows.length === 0 ? (
             <EmptyState
               {...(filter === 'today' ? emptyStates.noAppointmentsToday :
@@ -173,31 +162,37 @@ export default function OperatorAppointmentsPage() {
               <div
                 key={r.id}
                 onClick={() => router.push(`/op/appointments/${r.id}`)}
-                className={`border rounded-lg p-4 cursor-pointer hover:bg-white/5 transition ${r.status === 'cancelled' ? 'opacity-50' : ''}`}
+                className={`appointment-card ${r.status === 'cancelled' ? 'opacity-50' : ''}`}
+                style={{ opacity: r.status === 'cancelled' ? 0.5 : 1 }}
               >
-                <div className="flex justify-between items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{r.patient_name ?? 'Paziente'}</div>
-                    <div className="text-sm opacity-70">{r.service_name ?? 'Servizio'}</div>
+                <div className="flex justify-between items-start gap-3">
+                  <div className="flex-1" style={{ minWidth: 0 }}>
+                    <div className="font-semibold truncate">{r.patient_name ?? 'Paziente'}</div>
+                    <div className="text-sm text-muted truncate">{r.service_name ?? 'Servizio'}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-semibold">{eur(r.gross_amount_cents ?? 0)}</div>
-                    <div className={`text-xs px-2 py-0.5 rounded ${r.status === 'completed' ? 'bg-green-600' :
-                      r.status === 'cancelled' ? 'bg-red-600' :
-                        r.status === 'scheduled' ? 'bg-blue-600' : 'bg-gray-600'
-                      }`}>
-                      {statusLabel(r.status)}
-                    </div>
+                  <div className="text-right" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 'var(--space-1)' }}>
+                    <div className="font-bold text-accent">{eur(r.gross_amount_cents ?? 0)}</div>
+                    <Badge status={r.status} />
                   </div>
                 </div>
-                <div className="mt-2 text-sm opacity-70">
-                  📅 {formatDateIT(r.starts_at)}
+                <div className="mt-3 text-sm text-muted flex items-center gap-1">
+                  <span>🕐</span>
+                  <span>{formatDateIT(r.starts_at)}</span>
                 </div>
               </div>
             ))
           )}
         </div>
       )}
-    </main>
+
+      {/* FAB */}
+      <button
+        onClick={() => router.push('/op/appointments/new')}
+        className="fab"
+        aria-label="Nuovo appuntamento"
+      >
+        +
+      </button>
+    </div>
   );
 }

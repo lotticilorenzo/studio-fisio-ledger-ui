@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "../../../../lib/supabaseClient";
 
 type OperatorRow = { id: string; display_name: string; commission_rate: number };
 type ServiceRow = { id: string; name: string; default_price_cents: number };
 
 export default function NewAppointmentPage() {
+  const router = useRouter();
   const [operators, setOperators] = useState<OperatorRow[]>([]);
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -20,6 +22,7 @@ export default function NewAppointmentPage() {
   const [patientName, setPatientName] = useState("");
   const [grossEur, setGrossEur] = useState("0.00");
   const [notes, setNotes] = useState("");
+  const [marketingConsent, setMarketingConsent] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -43,12 +46,8 @@ export default function NewAppointmentPage() {
     })();
   }, []);
 
-  // autopopola prezzo quando scegli servizio
-  useEffect(() => {
-    const s = services.find((x) => x.id === serviceId);
-    if (!s) return;
-    setGrossEur((s.default_price_cents / 100).toFixed(2));
-  }, [serviceId, services]);
+  // autopopola prezzo quando scegli servizio -> Spostato in onChange
+  // useEffect removed to avoid cascading render
 
   const selectedOperator = useMemo(
     () => operators.find((o) => o.id === operatorId) ?? null,
@@ -92,17 +91,26 @@ export default function NewAppointmentPage() {
       p_status: status,
       p_gross_amount_cents: gross_amount_cents,
       p_notes: notes || null,
+      p_marketing_consent: marketingConsent,
     });
 
     if (error) return setError(error.message);
 
-    setOk("Appuntamento salvato ✅");
-    setNotes("");
+    // Redirect alla lista appuntamenti
+    router.push('/admin/appointments');
   };
 
   return (
     <main className="p-6 max-w-xl">
-      <h1 className="text-2xl font-semibold">Nuovo appuntamento</h1>
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h1 className="text-2xl font-semibold">Nuovo appuntamento</h1>
+        <button
+          onClick={() => router.push('/admin/appointments')}
+          className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition"
+        >
+          ← Indietro
+        </button>
+      </div>
 
       {error && (
         <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm">
@@ -137,7 +145,14 @@ export default function NewAppointmentPage() {
           <select
             className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
             value={serviceId}
-            onChange={(e) => setServiceId(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setServiceId(val);
+              const s = services.find((x) => x.id === val);
+              if (s) {
+                setGrossEur((s.default_price_cents / 100).toFixed(2));
+              }
+            }}
           >
             <option value="">(opzionale)</option>
             {services.map((s) => (
@@ -159,6 +174,19 @@ export default function NewAppointmentPage() {
           />
         </div>
 
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="marketingConsent"
+            checked={marketingConsent}
+            onChange={(e) => setMarketingConsent(e.target.checked)}
+            className="w-5 h-5 rounded border-white/20 bg-black/30 text-yellow-500 focus:ring-yellow-500"
+          />
+          <label htmlFor="marketingConsent" className="text-sm">
+            Consenso comunicazioni marketing (email/SMS)
+          </label>
+        </div>
+
         <div>
           <label className="text-sm opacity-80">Data e ora</label>
           <input
@@ -175,7 +203,7 @@ export default function NewAppointmentPage() {
             <select
               className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
               value={status}
-              onChange={(e) => setStatus(e.target.value as any)}
+              onChange={(e) => setStatus(e.target.value as "scheduled" | "completed" | "cancelled" | "no_show")}
             >
               <option value="scheduled">Programmato</option>
               <option value="completed">Completato</option>
