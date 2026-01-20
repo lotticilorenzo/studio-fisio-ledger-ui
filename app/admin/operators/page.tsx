@@ -145,152 +145,159 @@ export default function AdminOperatorsPage() {
         loadOperators();
     }
 
+    // Styles
+    const pageStyle: React.CSSProperties = { padding: '16px' };
+    const titleStyle: React.CSSProperties = { fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Poppins, sans-serif', marginBottom: '16px' };
+    const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', marginBottom: '24px' };
+    const cardTitleStyle: React.CSSProperties = { fontSize: '1rem', fontWeight: 600, color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' };
+    const hintStyle: React.CSSProperties = { fontSize: '0.875rem', color: '#64748b', marginBottom: '16px' };
+    const labelStyle: React.CSSProperties = { display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '6px' };
+    const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', minHeight: '48px', marginBottom: '16px' };
+    const btnPrimary: React.CSSProperties = { width: '100%', background: 'linear-gradient(135deg, #f4f119 0%, #ff9900 100%)', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '14px 20px', fontWeight: 600, cursor: 'pointer', fontSize: '1rem' };
+    const sectionTitle: React.CSSProperties = { fontSize: '1rem', fontWeight: 600, marginBottom: '12px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' };
+    const tableContainer: React.CSSProperties = { overflowX: 'auto', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' };
+    const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' };
+    const thStyle: React.CSSProperties = { textAlign: 'left', padding: '12px', fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
+    const tdStyle: React.CSSProperties = { padding: '12px', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
+    const errorBox: React.CSSProperties = { background: '#fee2e2', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '12px', color: '#991b1b', marginBottom: '16px', fontSize: '0.875rem' };
+    const successBox: React.CSSProperties = { background: '#d1fae5', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '12px', color: '#065f46', marginBottom: '16px', fontSize: '0.875rem' };
+    const badgeYes: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#d1fae5', color: '#065f46', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600 };
+    const badgeNo: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#fef3c7', color: '#92400e', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600 };
+    const editBtn: React.CSSProperties = { background: 'transparent', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.8rem' };
+    const saveBtn: React.CSSProperties = { background: '#10b981', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', marginRight: '6px' };
+    const cancelBtn: React.CSSProperties = { background: '#94a3b8', color: 'white', border: 'none', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer' };
+    const inlineInput: React.CSSProperties = { padding: '6px 10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '0.875rem' };
+
     if (loading) {
-        return <LoadingState />;
+        return <div style={pageStyle}><LoadingState /></div>;
     }
 
     return (
-        <div className="fade-in">
-            <div className="page-header">
-                <h1 className="page-title">Gestione Operatori</h1>
-            </div>
+        <div style={pageStyle}>
+            <h1 style={titleStyle}>Gestione Operatori</h1>
 
             {/* Form nuovo operatore */}
-            <div className="card card-body mb-6">
-                <h2 className="section-title">➕ Collega Nuovo Operatore</h2>
-                <p className="text-sm text-muted mb-4">
+            <div style={cardStyle}>
+                <h2 style={cardTitleStyle}>➕ Collega Nuovo Operatore</h2>
+                <p style={hintStyle}>
                     L&apos;utente deve già essersi registrato. Questa funzione collega l&apos;account esistente come operatore.
                 </p>
 
                 <form onSubmit={linkUser}>
-                    <div className="form-group">
-                        <label className="form-label">Email utente (già registrato)</label>
-                        <input
-                            type="email"
-                            className="form-input"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="operatore@esempio.com"
-                            required
-                        />
-                    </div>
+                    <label style={labelStyle}>Email utente (già registrato)</label>
+                    <input
+                        type="email"
+                        style={inputStyle}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="operatore@esempio.com"
+                        required
+                    />
 
-                    <div className="form-group">
-                        <label className="form-label">Nome visualizzato</label>
-                        <input
-                            type="text"
-                            className="form-input"
-                            value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            placeholder="Es. Dott. Mario Rossi"
-                            required
-                        />
-                    </div>
+                    <label style={labelStyle}>Nome visualizzato</label>
+                    <input
+                        type="text"
+                        style={inputStyle}
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="Es. Dott. Mario Rossi"
+                        required
+                    />
 
-                    <div className="form-group">
-                        <label className="form-label">Commissione studio (%)</label>
-                        <input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="1"
-                            className="form-input"
-                            value={commissionRate}
-                            onChange={(e) => setCommissionRate(e.target.value)}
-                            placeholder="20"
-                        />
-                        <p className="form-hint">Percentuale trattenuta dallo studio su ogni visita.</p>
-                    </div>
+                    <label style={labelStyle}>Commissione studio (%)</label>
+                    <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="1"
+                        style={inputStyle}
+                        value={commissionRate}
+                        onChange={(e) => setCommissionRate(e.target.value)}
+                        placeholder="20"
+                    />
+                    <p style={{ ...hintStyle, marginTop: '-8px' }}>Percentuale trattenuta dallo studio su ogni visita.</p>
 
-                    {err && <div className="error-box mb-4">{err}</div>}
-                    {success && <div className="success-box mb-4">{success}</div>}
+                    {err && <div style={errorBox}>⚠️ {err}</div>}
+                    {success && <div style={successBox}>✓ {success}</div>}
 
-                    <button type="submit" disabled={saving} className="btn btn-primary btn-full">
+                    <button type="submit" disabled={saving} style={{ ...btnPrimary, opacity: saving ? 0.7 : 1 }}>
                         {saving ? <><Spinner size="sm" /> Collego...</> : 'Collega Operatore'}
                     </button>
                 </form>
             </div>
 
             {/* Lista operatori */}
-            <div>
-                <h2 className="section-title">👥 Operatori Attuali</h2>
+            <h2 style={sectionTitle}>👥 Operatori Attuali</h2>
 
-                {operators.length === 0 ? (
-                    <EmptyState {...emptyStates.noOperators} />
-                ) : (
-                    <div className="table-container">
-                        <table className="table">
-                            <thead>
-                                <tr>
-                                    <th>Nome</th>
-                                    <th style={{ textAlign: 'right' }}>Commissione</th>
-                                    <th style={{ textAlign: 'center' }}>Account</th>
-                                    <th style={{ textAlign: 'center' }}>Azioni</th>
+            {operators.length === 0 ? (
+                <EmptyState {...emptyStates.noOperators} />
+            ) : (
+                <div style={tableContainer}>
+                    <table style={tableStyle}>
+                        <thead>
+                            <tr>
+                                <th style={thStyle}>Nome</th>
+                                <th style={{ ...thStyle, textAlign: 'center' }}>Commissione</th>
+                                <th style={{ ...thStyle, textAlign: 'center' }}>Account</th>
+                                <th style={{ ...thStyle, textAlign: 'center' }}>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {operators.map((op) => (
+                                <tr key={op.id}>
+                                    {editingId === op.id ? (
+                                        <>
+                                            <td style={tdStyle}>
+                                                <input
+                                                    type="text"
+                                                    style={{ ...inlineInput, width: '100%' }}
+                                                    value={editName}
+                                                    onChange={(e) => setEditName(e.target.value)}
+                                                />
+                                            </td>
+                                            <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    style={{ ...inlineInput, width: '60px', textAlign: 'center' }}
+                                                    value={editRate}
+                                                    onChange={(e) => setEditRate(e.target.value)}
+                                                />
+                                                <span style={{ marginLeft: '4px' }}>%</span>
+                                            </td>
+                                            <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                {op.user_id ? <span style={badgeYes}>✓ Sì</span> : <span style={badgeNo}>✗ No</span>}
+                                            </td>
+                                            <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                <button onClick={() => saveEdit(op.id)} style={saveBtn}>✓</button>
+                                                <button onClick={cancelEdit} style={cancelBtn}>✗</button>
+                                            </td>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <td style={{ ...tdStyle, fontWeight: 500 }}>{op.display_name}</td>
+                                            <td style={{ ...tdStyle, textAlign: 'center' }}>{((op.commission_rate ?? 0) * 100).toFixed(0)}%</td>
+                                            <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                {op.user_id ? (
+                                                    <span style={badgeYes}>✓ Sì</span>
+                                                ) : (
+                                                    <span style={badgeNo}>✗ No</span>
+                                                )}
+                                            </td>
+                                            <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                <button onClick={() => startEdit(op)} style={editBtn}>
+                                                    ✏️ Modifica
+                                                </button>
+                                            </td>
+                                        </>
+                                    )}
                                 </tr>
-                            </thead>
-                            <tbody>
-                                {operators.map((op) => (
-                                    <tr key={op.id}>
-                                        {editingId === op.id ? (
-                                            <>
-                                                <td>
-                                                    <input
-                                                        type="text"
-                                                        className="form-input"
-                                                        style={{ minHeight: '36px', padding: 'var(--space-2)' }}
-                                                        value={editName}
-                                                        onChange={(e) => setEditName(e.target.value)}
-                                                    />
-                                                </td>
-                                                <td style={{ textAlign: 'right' }}>
-                                                    <input
-                                                        type="number"
-                                                        min="0"
-                                                        max="100"
-                                                        className="form-input"
-                                                        style={{ width: '80px', minHeight: '36px', padding: 'var(--space-2)', textAlign: 'right' }}
-                                                        value={editRate}
-                                                        onChange={(e) => setEditRate(e.target.value)}
-                                                    />
-                                                    <span className="ml-1">%</span>
-                                                </td>
-                                                <td style={{ textAlign: 'center' }}>
-                                                    {op.user_id ? <span className="text-success">✓</span> : <span className="text-warning">✗</span>}
-                                                </td>
-                                                <td style={{ textAlign: 'center' }}>
-                                                    <button onClick={() => saveEdit(op.id)} className="btn btn-sm" style={{ background: 'var(--success)', color: 'white', marginRight: 'var(--space-2)' }}>
-                                                        ✓
-                                                    </button>
-                                                    <button onClick={cancelEdit} className="btn btn-ghost btn-sm">
-                                                        ✕
-                                                    </button>
-                                                </td>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <td className="font-medium">{op.display_name}</td>
-                                                <td style={{ textAlign: 'right' }}>{((op.commission_rate ?? 0) * 100).toFixed(0)}%</td>
-                                                <td style={{ textAlign: 'center' }}>
-                                                    {op.user_id ? (
-                                                        <span className="text-success">✓ Sì</span>
-                                                    ) : (
-                                                        <span style={{ color: 'var(--warning)' }}>✗ No</span>
-                                                    )}
-                                                </td>
-                                                <td style={{ textAlign: 'center' }}>
-                                                    <button onClick={() => startEdit(op)} className="btn btn-ghost btn-sm">
-                                                        ✏️ Modifica
-                                                    </button>
-                                                </td>
-                                            </>
-                                        )}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </div>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
     );
 }

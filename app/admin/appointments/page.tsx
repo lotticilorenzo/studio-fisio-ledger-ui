@@ -176,78 +176,88 @@ export default function AdminAppointmentsPage() {
   const totaleComm = useMemo(() => rows.reduce((s, r) => s + (r.commission_amount_cents ?? 0), 0), [rows]);
   const totaleNetto = totaleLordo - totaleComm;
 
+  // Styles
+  const pageStyle: React.CSSProperties = { padding: '16px' };
+  const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' };
+  // Titolo scuro per migliore leggibilità
+  const titleStyle: React.CSSProperties = {
+    fontSize: '1.5rem',
+    fontWeight: 700,
+    color: '#0f172a',
+    fontFamily: 'Poppins, sans-serif',
+  };
+  const btnPrimary: React.CSSProperties = { background: 'linear-gradient(135deg, #f4f119 0%, #ff9900 100%)', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '8px 16px', fontWeight: 600, cursor: 'pointer' };
+  const btnSecondary: React.CSSProperties = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 16px', fontWeight: 500, cursor: 'pointer', color: '#475569' };
+  const filterRow: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px', alignItems: 'center' };
+  const inputStyle: React.CSSProperties = { padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', minHeight: '44px' };
+  const sectionTitle: React.CSSProperties = { fontSize: '1rem', fontWeight: 600, marginBottom: '12px', marginTop: '24px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' };
+  const tableContainer: React.CSSProperties = { overflowX: 'auto', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' };
+  const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' };
+  const thStyle: React.CSSProperties = { textAlign: 'left', padding: '12px', fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
+  const tdStyle: React.CSSProperties = { padding: '12px', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
+
   return (
-    <div className="fade-in">
+    <div style={pageStyle}>
       {/* Header */}
-      <div className="page-header">
-        <h1 className="page-title">Dashboard</h1>
-        <button
-          onClick={() => router.push('/admin/appointments/new')}
-          className="btn btn-primary btn-sm"
-        >
+      <div style={headerStyle}>
+        <h1 style={titleStyle}>Dashboard</h1>
+        <button onClick={() => router.push('/admin/appointments/new')} style={btnPrimary}>
           + Nuovo
         </button>
       </div>
 
-      {/* Month Filter */}
-      <div className="flex flex-wrap gap-2 mb-4" style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', marginBottom: 'var(--space-4)' }}>
+      {/* Filters */}
+      <div style={filterRow}>
         <input
           type="month"
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
-          className="form-input"
-          style={{ maxWidth: '180px' }}
+          style={{ ...inputStyle, maxWidth: '180px' }}
         />
-        <button onClick={exportCSV} className="btn btn-secondary btn-sm">
-          📥 CSV
-        </button>
-        <button onClick={exportPDF} className="btn btn-secondary btn-sm">
-          📄 PDF
-        </button>
-        <button onClick={() => load(selectedMonth)} className="btn btn-ghost btn-sm">
-          ↻
-        </button>
+        <button onClick={exportCSV} style={btnSecondary}>📥 CSV</button>
+        <button onClick={exportPDF} style={btnSecondary}>📄 PDF</button>
+        <button onClick={() => load(selectedMonth)} style={{ ...btnSecondary, padding: '8px 12px' }}>↻</button>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards - Commissioni evidenziato (guadagno studio) */}
       <KpiGrid>
         <KpiCard value={rows.length} label="Appuntamenti" icon="📅" />
-        <KpiCard value={eur(totaleLordo)} label="Lordo" accent />
-        <KpiCard value={eur(totaleComm)} label="Commissioni" icon="💼" />
+        <KpiCard value={eur(totaleLordo)} label="Lordo" icon="💰" />
+        <KpiCard value={eur(totaleComm)} label="Commissioni" highlight icon="💼" />
         <KpiCard value={eur(totaleNetto)} label="Netto Op." icon="👤" />
       </KpiGrid>
 
-      {loading && <div className="mt-6"><LoadingState /></div>}
+      {loading && <LoadingState />}
 
       {err && (
-        <div className="error-box mt-4">
-          ⚠️ Errore: {err}
+        <div style={{ background: '#fee2e2', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', padding: '16px', color: '#991b1b', marginBottom: '16px' }}>
+          ⚠️ {err}
         </div>
       )}
 
       {/* Summary per Operatore */}
       {!loading && summary.length > 0 && (
-        <div className="mt-6">
-          <h2 className="section-title">📊 Riepilogo per operatore</h2>
-          <div className="table-container">
-            <table className="table">
+        <div>
+          <h2 style={sectionTitle}>📊 Riepilogo per operatore</h2>
+          <div style={tableContainer}>
+            <table style={tableStyle}>
               <thead>
                 <tr>
-                  <th>Operatore</th>
-                  <th style={{ textAlign: 'right' }}>App.</th>
-                  <th style={{ textAlign: 'right' }}>Lordo</th>
-                  <th style={{ textAlign: 'right' }}>Comm.</th>
-                  <th style={{ textAlign: 'right' }}>Netto</th>
+                  <th style={thStyle}>Operatore</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>App.</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Lordo</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Comm.</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Netto</th>
                 </tr>
               </thead>
               <tbody>
                 {summary.map((s) => (
                   <tr key={s.operator_id}>
-                    <td className="font-medium">{s.operator_name}</td>
-                    <td style={{ textAlign: 'right' }}>{s.num_appointments}</td>
-                    <td style={{ textAlign: 'right' }}>{eur(s.total_gross_cents)}</td>
-                    <td style={{ textAlign: 'right', color: 'var(--success)' }}>{eur(s.total_commission_cents)}</td>
-                    <td style={{ textAlign: 'right' }}>{eur(s.total_net_cents)}</td>
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>{s.operator_name}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{s.num_appointments}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{eur(s.total_gross_cents)}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right', color: '#10b981' }}>{eur(s.total_commission_cents)}</td>
+                    <td style={{ ...tdStyle, textAlign: 'right' }}>{eur(s.total_net_cents)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -258,46 +268,41 @@ export default function AdminAppointmentsPage() {
 
       {/* Appointments Table */}
       {!loading && !err && (
-        <div className="mt-6">
-          <h2 className="section-title">📋 Elenco appuntamenti</h2>
-          <div className="table-container">
-            <table className="table">
+        <div>
+          <h2 style={sectionTitle}>📋 Elenco appuntamenti</h2>
+          <div style={tableContainer}>
+            <table style={tableStyle}>
               <thead>
                 <tr>
-                  <th>Data/Ora</th>
-                  <th>Operatore</th>
-                  <th>Servizio</th>
-                  <th>Paziente</th>
-                  <th>Stato</th>
-                  <th style={{ textAlign: 'right' }}>Lordo</th>
-                  <th style={{ textAlign: 'right' }}>Comm.</th>
-                  <th style={{ textAlign: 'center' }}>Azioni</th>
+                  <th style={thStyle}>Data/Ora</th>
+                  <th style={thStyle}>Operatore</th>
+                  <th style={thStyle}>Servizio</th>
+                  <th style={thStyle}>Paziente</th>
+                  <th style={thStyle}>Stato</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Lordo</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }}>Comm.</th>
+                  <th style={{ ...thStyle, textAlign: 'center' }}>Azioni</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: 'var(--space-8)' }}>
+                    <td colSpan={8} style={{ ...tdStyle, textAlign: 'center', padding: '32px', color: '#94a3b8' }}>
                       Nessun appuntamento nel mese selezionato.
                     </td>
                   </tr>
                 ) : (
                   rows.map((r) => (
-                    <tr key={r.id}>
-                      <td>{new Date(r.starts_at).toLocaleString('it-IT')}</td>
-                      <td>{r.operators?.display_name ?? '-'}</td>
-                      <td>{r.services?.name ?? '-'}</td>
-                      <td>{r.patients?.full_name ?? '-'}</td>
-                      <td><Badge status={r.status} /></td>
-                      <td style={{ textAlign: 'right' }}>{eur(r.gross_amount_cents ?? 0)}</td>
-                      <td style={{ textAlign: 'right' }}>{eur(r.commission_amount_cents ?? 0)}</td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          onClick={() => router.push(`/admin/appointments/${r.id}`)}
-                          className="btn btn-ghost btn-sm"
-                        >
-                          ✏️
-                        </button>
+                    <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => router.push(`/admin/appointments/${r.id}`)}>
+                      <td style={tdStyle}>{new Date(r.starts_at).toLocaleString('it-IT')}</td>
+                      <td style={tdStyle}>{r.operators?.display_name ?? '-'}</td>
+                      <td style={tdStyle}>{r.services?.name ?? '-'}</td>
+                      <td style={tdStyle}>{r.patients?.full_name ?? '-'}</td>
+                      <td style={tdStyle}><Badge status={r.status} /></td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>{eur(r.gross_amount_cents ?? 0)}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>{eur(r.commission_amount_cents ?? 0)}</td>
+                      <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <span style={{ fontSize: '1rem' }}>✏️</span>
                       </td>
                     </tr>
                   ))

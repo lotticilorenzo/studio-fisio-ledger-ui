@@ -6,14 +6,11 @@ import { supabase } from "@/lib/supabaseClient";
 
 type AppHeaderProps = {
     subtitle?: string;
-    variant?: "admin" | "operator";
-    maxWidth?: string;
     showLogout?: boolean;
 };
 
 export function AppHeader({
     subtitle = "Gestionale Appuntamenti",
-    maxWidth = "container-lg",
     showLogout = true,
 }: AppHeaderProps) {
     const router = useRouter();
@@ -26,38 +23,68 @@ export function AppHeader({
         router.replace("/login");
     }
 
+    const headerStyle: React.CSSProperties = {
+        position: 'sticky',
+        top: 0,
+        zIndex: 20,
+        background: 'rgba(255, 255, 255, 0.98)',
+        backdropFilter: 'blur(8px)',
+        borderBottom: '1px solid #e2e8f0',
+        padding: '12px 16px',
+    };
+
+    const innerStyle: React.CSSProperties = {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        maxWidth: '1024px',
+        margin: '0 auto',
+    };
+
+    // Titolo scuro per migliore visibilità
+    const titleStyle: React.CSSProperties = {
+        fontSize: '1.125rem',
+        fontWeight: 700,
+        color: '#0f172a', // Nero per buona leggibilità
+        fontFamily: 'Poppins, sans-serif',
+    };
+
+    const subtitleStyle: React.CSSProperties = {
+        fontSize: '0.75rem',
+        color: '#64748b',
+    };
+
+    const logoutBtnStyle: React.CSSProperties = {
+        background: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        padding: '8px',
+        borderRadius: '8px',
+        color: '#94a3b8',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+    };
+
     return (
-        <header className="app-header">
-            <div className={`${maxWidth} flex items-center justify-between`} style={{ margin: '0 auto' }}>
-                <div className="flex items-center gap-3">
+        <header style={headerStyle}>
+            <div style={innerStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <Image
                         src="/brand/logo.png"
                         alt="Studio FISYO"
                         width={40}
                         height={40}
-                        className="rounded-lg"
-                        style={{ boxShadow: 'var(--shadow-sm)' }}
+                        style={{ borderRadius: '10px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
                         priority
                     />
                     <div>
-                        <h1 className="text-lg font-bold" style={{
-                            background: 'linear-gradient(135deg, var(--brand-yellow) 0%, var(--brand-orange) 100%)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            backgroundClip: 'text'
-                        }}>
-                            Studio FISYO
-                        </h1>
-                        <p className="text-xs text-muted">{subtitle}</p>
+                        <h1 style={titleStyle}>Studio FISYO</h1>
+                        <p style={subtitleStyle}>{subtitle}</p>
                     </div>
                 </div>
                 {showLogout && (
-                    <button
-                        onClick={logout}
-                        className="btn-icon btn-ghost"
-                        title="Esci dall'account"
-                        aria-label="Esci"
-                    >
+                    <button onClick={logout} style={logoutBtnStyle} title="Esci dall'account" aria-label="Esci">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                             <polyline points="16 17 21 12 16 7" />
