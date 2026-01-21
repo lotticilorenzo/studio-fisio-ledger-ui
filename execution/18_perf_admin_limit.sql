@@ -44,7 +44,7 @@ BEGIN
     a.commission_amount_cents,
     o.display_name as operator_name,
     s.name as service_name,
-    COALESCE(p.full_name, p.display_name) as patient_name
+    p.full_name as patient_name
   FROM appointments a
   LEFT JOIN operators o ON a.operator_id = o.id
   LEFT JOIN services s ON a.service_id = s.id

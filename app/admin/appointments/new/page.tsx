@@ -13,6 +13,7 @@ export default function NewAppointmentPage() {
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  const [minDate, setMinDate] = useState("");
 
   // form state
   const [operatorId, setOperatorId] = useState("");
@@ -43,6 +44,10 @@ export default function NewAppointmentPage() {
 
       setOperators((opData ?? []) as OperatorRow[]);
       setServices((srvData ?? []) as ServiceRow[]);
+
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      setMinDate(now.toISOString().slice(0, 16));
     })();
   }, []);
 
@@ -192,7 +197,7 @@ export default function NewAppointmentPage() {
           <input
             className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
             type="datetime-local"
-            min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+            min={minDate}
             value={startsAt}
             onChange={(e) => setStartsAt(e.target.value)}
           />
