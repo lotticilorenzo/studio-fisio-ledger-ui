@@ -192,7 +192,7 @@ export default function NewAppointmentPage() {
           <input
             className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
             type="datetime-local"
-            min={new Date().toISOString().slice(0, 16)}
+            min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
             value={startsAt}
             onChange={(e) => setStartsAt(e.target.value)}
           />
