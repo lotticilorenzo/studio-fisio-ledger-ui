@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { EmptyState, emptyStates } from '@/components/EmptyState';
@@ -19,9 +19,7 @@ type Row = {
 
 type FilterType = 'today' | 'tomorrow' | 'all';
 
-function eur(cents: number) {
-  return `€${((cents ?? 0) / 100).toFixed(2)}`;
-}
+import { eur } from '@/lib/format';
 
 function formatDateIT(dateStr: string) {
   const d = new Date(dateStr);
@@ -49,7 +47,7 @@ export default function OperatorAppointmentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterType>('today');
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
 
@@ -63,11 +61,11 @@ export default function OperatorAppointmentsPage() {
     }
 
     setLoading(false);
-  }
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const filteredRows = useMemo(() => {
     const today = new Date();

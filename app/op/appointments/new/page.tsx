@@ -23,6 +23,8 @@ export default function OpNewAppointmentPage() {
 
   const [serviceId, setServiceId] = useState<string>('');
   const [patientName, setPatientName] = useState<string>('');
+  const [email, setEmail] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
   const [grossEuro, setGrossEuro] = useState<string>('80');
   const [notes, setNotes] = useState<string>('');
   const [marketingConsent, setMarketingConsent] = useState(false);
@@ -81,10 +83,12 @@ export default function OpNewAppointmentPage() {
     const { error } = await supabase.rpc('op_create_appointment', {
       p_service_id: serviceId,
       p_starts_at: new Date(startsAt).toISOString(),
-      p_patient_full_name: patientName.trim(),
+      p_patient_name: patientName.trim(),
       p_gross_amount_cents: grossCents,
       p_notes: notes || null,
       p_marketing_consent: marketingConsent,
+      p_email: email,
+      p_phone: phone,
     });
 
     if (error) {
@@ -154,16 +158,43 @@ export default function OpNewAppointmentPage() {
           placeholder="Es. Maria Rossi"
         />
 
-        <div style={checkboxRow}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div>
+            <label style={labelStyle}>📧 Email (opzionale)</label>
+            <input
+              type="email"
+              style={inputStyle}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="maria@example.com"
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>📱 Telefono (opzionale)</label>
+            <input
+              type="tel"
+              style={inputStyle}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="333 1234567"
+            />
+          </div>
+        </div>
+
+        <div style={{...checkboxRow, border: '1px solid #e2e8f0', padding: '12px', borderRadius: '8px', alignItems: 'flex-start'}}>
           <input
             type="checkbox"
             id="marketingConsentOp"
             checked={marketingConsent}
             onChange={(e) => setMarketingConsent(e.target.checked)}
-            style={checkboxStyle}
+            style={{...checkboxStyle, marginTop: '4px'}}
           />
-          <label htmlFor="marketingConsentOp" style={{ fontSize: '0.875rem', color: '#64748b' }}>
-            Consenso comunicazioni marketing
+          <label htmlFor="marketingConsentOp" style={{ fontSize: '0.875rem', color: '#0f172a', lineHeight: '1.4' }}>
+            Consenso comunicazioni marketing (email/WhatsApp).
+            <br />
+            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
+              (Non serve per i promemoria dell’appuntamento.)
+            </span>
           </label>
         </div>
 

@@ -9,6 +9,7 @@ import { KpiCard, KpiGrid } from '@/components/ui/KpiCard';
 import { LoadingState } from '@/components/ui/Loading';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { eur } from '@/lib/format';
 
 type AppointmentRow = {
   id: string;
@@ -31,9 +32,7 @@ type OperatorSummary = {
   total_net_cents: number;
 };
 
-function eur(cents: number) {
-  return `€${((cents ?? 0) / 100).toFixed(2)}`;
-}
+
 
 function getCurrentMonth() {
   const now = new Date();
