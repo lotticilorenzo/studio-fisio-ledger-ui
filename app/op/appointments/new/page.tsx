@@ -32,6 +32,10 @@ export default function OpNewAppointmentPage() {
     return Number.isFinite(n) ? Math.round(n * 100) : 0;
   }, [grossEuro]);
 
+  // Detect if "Altro" service is selected
+  const selectedService = services.find(s => s.id === serviceId);
+  const isAltro = selectedService?.name?.toLowerCase().includes('altro') ?? false;
+
   useEffect(() => {
     (async () => {
       setErr(null);
@@ -53,6 +57,12 @@ export default function OpNewAppointmentPage() {
     }
     if (!serviceId) {
       setErr('Seleziona un servizio.');
+      setLoading(false);
+      return;
+    }
+    // "Altro" requires notes
+    if (isAltro && !notes.trim()) {
+      setErr('Per il servizio "Altro" è obbligatorio specificare nelle note.');
       setLoading(false);
       return;
     }
@@ -78,7 +88,13 @@ export default function OpNewAppointmentPage() {
     });
 
     if (error) {
-      setErr(humanError(error.message));
+      if (error.message.includes('notes_required_for_altro')) {
+        setErr('Per il servizio "Altro" è obbligatorio specificare nelle note.');
+      } else if (error.message.includes('service_not_assigned')) {
+        setErr('Questo servizio non è assegnato al tuo profilo.');
+      } else {
+        setErr(humanError(error.message));
+      }
       setLoading(false);
       return;
     }
@@ -160,13 +176,25 @@ export default function OpNewAppointmentPage() {
           placeholder="80"
         />
 
-        <label style={labelStyle}>📝 Note (opzionale)</label>
+        <label style={labelStyle}>
+          📝 Note {isAltro ? <span style={{ color: '#dc2626', fontWeight: 600 }}>(obbligatorio per &quot;Altro&quot;)</span> : '(opzionale)'}
+        </label>
+        {isAltro && (
+          <p style={{ fontSize: '0.8rem', color: '#f59e0b', marginBottom: '8px', marginTop: '-4px' }}>
+            ⚠️ Specifica il tipo di servizio nelle note
+          </p>
+        )}
         <textarea
-          style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }}
+          style={{
+            ...inputStyle,
+            minHeight: '80px',
+            resize: 'vertical',
+            borderColor: isAltro && !notes.trim() ? '#f59e0b' : '#e2e8f0'
+          }}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          placeholder="Aggiungi note..."
+          placeholder={isAltro ? "Es. Consulenza specifica per..." : "Aggiungi note..."}
         />
 
         <button onClick={save} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.7 : 1 }}>

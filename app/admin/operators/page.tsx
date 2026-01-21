@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { humanError } from '@/lib/humanError';
@@ -12,6 +12,12 @@ type Operator = {
     display_name: string;
     commission_rate: number;
     user_id: string | null;
+};
+
+type OperatorService = {
+    service_id: string;
+    service_name: string;
+    assigned: boolean;
 };
 
 export default function AdminOperatorsPage() {
@@ -29,6 +35,49 @@ export default function AdminOperatorsPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editName, setEditName] = useState('');
     const [editRate, setEditRate] = useState('');
+
+    // Service management state
+    const [servicesOpId, setServicesOpId] = useState<string | null>(null);
+    const [opServices, setOpServices] = useState<OperatorService[]>([]);
+    const [servicesLoading, setServicesLoading] = useState(false);
+
+    async function loadOperatorServices(opId: string) {
+        setServicesLoading(true);
+        const { data, error } = await supabase.rpc('admin_get_operator_services', { p_operator_id: opId });
+        if (error) {
+            setErr(humanError(error.message));
+        } else {
+            setOpServices((data ?? []) as OperatorService[]);
+        }
+        setServicesLoading(false);
+    }
+
+    async function toggleService(opId: string, serviceId: string, currentlyAssigned: boolean) {
+        const { error } = await supabase.rpc('admin_toggle_operator_service', {
+            p_operator_id: opId,
+            p_service_id: serviceId,
+            p_assign: !currentlyAssigned
+        });
+        if (error) {
+            setErr(humanError(error.message));
+        } else {
+            // Update local state
+            setOpServices(prev => prev.map(s =>
+                s.service_id === serviceId ? { ...s, assigned: !currentlyAssigned } : s
+            ));
+            setSuccess(`Servizio ${!currentlyAssigned ? 'assegnato' : 'rimosso'}!`);
+        }
+    }
+
+    function openServices(opId: string) {
+        if (servicesOpId === opId) {
+            setServicesOpId(null);
+            setOpServices([]);
+        } else {
+            setServicesOpId(opId);
+            loadOperatorServices(opId);
+        }
+    }
 
     async function loadOperators() {
         setLoading(true);
@@ -244,55 +293,105 @@ export default function AdminOperatorsPage() {
                         </thead>
                         <tbody>
                             {operators.map((op) => (
-                                <tr key={op.id}>
-                                    {editingId === op.id ? (
-                                        <>
-                                            <td style={tdStyle}>
-                                                <input
-                                                    type="text"
-                                                    style={{ ...inlineInput, width: '100%' }}
-                                                    value={editName}
-                                                    onChange={(e) => setEditName(e.target.value)}
-                                                />
-                                            </td>
-                                            <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    max="100"
-                                                    style={{ ...inlineInput, width: '60px', textAlign: 'center' }}
-                                                    value={editRate}
-                                                    onChange={(e) => setEditRate(e.target.value)}
-                                                />
-                                                <span style={{ marginLeft: '4px' }}>%</span>
-                                            </td>
-                                            <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                                {op.user_id ? <span style={badgeYes}>✓ Sì</span> : <span style={badgeNo}>✗ No</span>}
-                                            </td>
-                                            <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                                <button onClick={() => saveEdit(op.id)} style={saveBtn}>✓</button>
-                                                <button onClick={cancelEdit} style={cancelBtn}>✗</button>
-                                            </td>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <td style={{ ...tdStyle, fontWeight: 500 }}>{op.display_name}</td>
-                                            <td style={{ ...tdStyle, textAlign: 'center' }}>{((op.commission_rate ?? 0) * 100).toFixed(0)}%</td>
-                                            <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                                {op.user_id ? (
-                                                    <span style={badgeYes}>✓ Sì</span>
+                                <React.Fragment key={op.id}>
+                                    <tr>
+                                        {editingId === op.id ? (
+                                            <>
+                                                <td style={tdStyle}>
+                                                    <input
+                                                        type="text"
+                                                        style={{ ...inlineInput, width: '100%' }}
+                                                        value={editName}
+                                                        onChange={(e) => setEditName(e.target.value)}
+                                                    />
+                                                </td>
+                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        max="100"
+                                                        style={{ ...inlineInput, width: '60px', textAlign: 'center' }}
+                                                        value={editRate}
+                                                        onChange={(e) => setEditRate(e.target.value)}
+                                                    />
+                                                    <span style={{ marginLeft: '4px' }}>%</span>
+                                                </td>
+                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                    {op.user_id ? <span style={badgeYes}>✓ Sì</span> : <span style={badgeNo}>✗ No</span>}
+                                                </td>
+                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                    <button onClick={() => saveEdit(op.id)} style={saveBtn}>✓</button>
+                                                    <button onClick={cancelEdit} style={cancelBtn}>✗</button>
+                                                </td>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <td style={{ ...tdStyle, fontWeight: 500 }}>{op.display_name}</td>
+                                                <td style={{ ...tdStyle, textAlign: 'center' }}>{((op.commission_rate ?? 0) * 100).toFixed(0)}%</td>
+                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                    {op.user_id ? (
+                                                        <span style={badgeYes}>✓ Sì</span>
+                                                    ) : (
+                                                        <span style={badgeNo}>✗ No</span>
+                                                    )}
+                                                </td>
+                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                    <button onClick={() => startEdit(op)} style={{ ...editBtn, marginRight: '6px' }}>
+                                                        ✏️
+                                                    </button>
+                                                    <button
+                                                        onClick={() => openServices(op.id)}
+                                                        style={{
+                                                            ...editBtn,
+                                                            background: servicesOpId === op.id ? '#fef3c7' : 'transparent'
+                                                        }}
+                                                    >
+                                                        🏷️ Servizi
+                                                    </button>
+                                                </td>
+                                            </>
+                                        )}
+                                    </tr>
+                                    {/* Expandable services row */}
+                                    {servicesOpId === op.id && (
+                                        <tr>
+                                            <td colSpan={4} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                                {servicesLoading ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b' }}>
+                                                        <Spinner size="sm" /> Caricamento servizi...
+                                                    </div>
                                                 ) : (
-                                                    <span style={badgeNo}>✗ No</span>
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                                                        {opServices.map(svc => (
+                                                            <label
+                                                                key={svc.service_id}
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                    padding: '6px 12px',
+                                                                    background: svc.assigned ? '#d1fae5' : '#fff',
+                                                                    border: `1px solid ${svc.assigned ? '#10b981' : '#e2e8f0'}`,
+                                                                    borderRadius: '20px',
+                                                                    cursor: 'pointer',
+                                                                    fontSize: '0.8rem'
+                                                                }}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={svc.assigned}
+                                                                    onChange={() => toggleService(op.id, svc.service_id, svc.assigned)}
+                                                                    style={{ accentColor: '#10b981' }}
+                                                                />
+                                                                {svc.service_name}
+                                                            </label>
+                                                        ))}
+                                                    </div>
                                                 )}
                                             </td>
-                                            <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                                <button onClick={() => startEdit(op)} style={editBtn}>
-                                                    ✏️ Modifica
-                                                </button>
-                                            </td>
-                                        </>
+                                        </tr>
                                     )}
-                                </tr>
+                                </React.Fragment>
                             ))}
                         </tbody>
                     </table>
