@@ -46,8 +46,9 @@ export default function NewAppointmentPage() {
       setServices((srvData ?? []) as ServiceRow[]);
 
       const now = new Date();
-      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      setMinDate(now.toISOString().slice(0, 16));
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      const localIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      setMinDate(localIso);
     })();
   }, []);
 
