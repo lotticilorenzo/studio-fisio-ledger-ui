@@ -14,6 +14,7 @@ export default function OpNewAppointmentPage() {
   const [err, setErr] = useState<string | null>(null);
   const [services, setServices] = useState<Service[]>([]);
   const [servicesLoading, setServicesLoading] = useState(true);
+  const [minDate, setMinDate] = useState('');
 
   const [startsAt, setStartsAt] = useState<string>(() => {
     const d = new Date(Date.now() + 60 * 60 * 1000);
@@ -34,22 +35,35 @@ export default function OpNewAppointmentPage() {
     return Number.isFinite(n) ? Math.round(n * 100) : 0;
   }, [grossEuro]);
 
-  // Detect if "Altro" service is selected
   const selectedService = services.find(s => s.id === serviceId);
   const isAltro = selectedService?.name?.toLowerCase().includes('altro') ?? false;
+
   useEffect(() => {
+    let isMounted = true;
     (async () => {
-      setErr(null);
-      const { data, error } = await supabase.rpc('get_my_services_op');
-      if (error) setErr(humanError(error.message));
-      else setServices((data ?? []) as Service[]);
-      setServicesLoading(false);
+      try {
+        setErr(null);
+        const { data, error } = await supabase.rpc('get_my_services_op');
+        if (!isMounted) return;
+
+        if (error) {
+          setErr(humanError(error.message));
+        } else {
+          setServices((data ?? []) as Service[]);
+        }
+      } catch (e: any) {
+        if (isMounted) setErr("Errore di connessione al server.");
+      } finally {
+        if (isMounted) setServicesLoading(false);
+      }
 
       const now = new Date();
       const pad = (n: number) => n.toString().padStart(2, '0');
       const localIso = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-      setMinDate(localIso);
+      if (isMounted) setMinDate(localIso);
     })();
+
+    return () => { isMounted = false; };
   }, []);
 
   async function save() {
@@ -62,33 +76,31 @@ export default function OpNewAppointmentPage() {
       return;
     }
     if (!serviceId) {
-      // "Altro" requires notes
-      if (isAltro && !notes.trim()) {
-        setErr('Per il servizio "Altro" è obbligatorio specificare nelle note.');
-        setLoading(false);
-        return;
-      }
-      if (grossCents <= 0) {
-        setErr('Inserisci un importo valido.');
-        setLoading(false);
-        return;
-      }
-      const appointmentDate = new Date(startsAt);
-      if (appointmentDate < new Date()) {
-        setErr('Non puoi creare un appuntamento nel passato.');
-        setLoading(false);
-        return;
-      }
+      setErr('Seleziona un servizio.');
+      setLoading(false);
+      return;
+    }
+    if (isAltro && !notes.trim()) {
+      setErr('Per il servizio "Altro" è obbligatorio specificare nelle note.');
+      setLoading(false);
+      return;
+    }
+    if (grossCents <= 0) {
+      setErr('Inserisci un importo valido.');
+      setLoading(false);
+      return;
+    }
 
+    try {
       const { error } = await supabase.rpc('op_create_appointment', {
-        p_service_id: serviceId,
         p_starts_at: new Date(startsAt).toISOString(),
+        p_service_id: serviceId,
         p_patient_name: patientName.trim(),
         p_gross_amount_cents: grossCents,
         p_notes: notes || null,
         p_marketing_consent: marketingConsent,
-        p_email: email,
-        p_phone: phone,
+        p_email: email.trim() || null,
+        p_phone: phone.trim() || null,
       });
 
       if (error) {
@@ -104,77 +116,79 @@ export default function OpNewAppointmentPage() {
       }
 
       router.replace('/op/appointments');
+    } catch (e) {
+      setErr("Errore durante il salvataggio. Riprova.");
+      setLoading(false);
     }
   }
 
-  // Styles
-  const pageStyle: React.CSSProperties = { padding: '16px' };
-  const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' };
-  const titleStyle: React.CSSProperties = { fontSize: '1.25rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Poppins, sans-serif' };
-  const backBtn: React.CSSProperties = { background: 'transparent', border: 'none', cursor: 'pointer', padding: '8px', color: '#64748b', fontSize: '0.875rem' };
-  const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px' };
-  const labelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '6px' };
-  const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', minHeight: '48px', marginBottom: '16px' };
-  const selectStyle: React.CSSProperties = { ...inputStyle, appearance: 'none', background: '#fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%2394a3b8\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 12px center', paddingRight: '40px' };
-  const checkboxRow: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' };
-  const checkboxStyle: React.CSSProperties = { width: '20px', height: '20px', accentColor: '#ff9900' };
-  const btnPrimary: React.CSSProperties = { width: '100%', background: 'linear-gradient(135deg, #f4f119 0%, #ff9900 100%)', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '14px 20px', fontWeight: 600, cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' };
-  const errorBox: React.CSSProperties = { background: '#fee2e2', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '12px', color: '#991b1b', marginBottom: '16px', fontSize: '0.875rem' };
-
-  if (servicesLoading) {
-    return <div style={pageStyle}><LoadingState /></div>;
-  }
+  if (servicesLoading) return <div className="p-4"><LoadingState /></div>;
 
   return (
-    <div style={pageStyle}>
-      <div style={headerStyle}>
-        <h1 style={titleStyle}>Nuovo appuntamento</h1>
-        <button onClick={() => router.back()} style={backBtn}>← Indietro</button>
-      </div>
+    <div className="p-4 md:p-6 space-y-6 pb-24 max-w-md mx-auto">
+      <header className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-bold text-slate-900 font-[Poppins]">Nuovo Appuntamento</h1>
+        <button onClick={() => router.back()} className="text-slate-400 hover:text-slate-900 text-sm font-medium">← Indietro</button>
+      </header>
 
-      {err && <div style={errorBox}>⚠️ {err}</div>}
+      {err && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-xl border border-red-100 text-sm animate-in fade-in slide-in-from-top-1">
+          ⚠️ {err}
+        </div>
+      )}
 
-      <div style={cardStyle}>
-        <label style={labelStyle}>📅 Data e ora</label>
-        <input
-          type="datetime-local"
-          style={inputStyle}
-          value={startsAt}
-          onChange={(e) => setStartsAt(e.target.value)}
-        />
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-5">
+        <div>
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">📅 Data e ora</label>
+          <input
+            type="datetime-local"
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all font-medium text-slate-700"
+            min={minDate}
+            value={startsAt}
+            onChange={(e) => setStartsAt(e.target.value)}
+          />
+        </div>
 
-        <label style={labelStyle}>🏷️ Servizio</label>
-        <select style={selectStyle} value={serviceId} onChange={(e) => setServiceId(e.target.value)}>
-          <option value="">Seleziona un servizio...</option>
-          {services.map((s) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
+        <div>
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">🏷️ Servizio</label>
+          <select
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all font-medium text-slate-700 appearance-none bg-no-repeat bg-[right_1rem_center]"
+            value={serviceId}
+            onChange={(e) => setServiceId(e.target.value)}
+          >
+            <option value="">Seleziona un servizio...</option>
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
 
-        <label style={labelStyle}>👤 Nome paziente</label>
-        <input
-          style={inputStyle}
-          value={patientName}
-          onChange={(e) => setPatientName(e.target.value)}
-          placeholder="Es. Maria Rossi"
-        />
+        <div>
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">👤 Nome paziente</label>
+          <input
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all font-medium text-slate-700 placeholder:text-slate-300"
+            value={patientName}
+            onChange={(e) => setPatientName(e.target.value)}
+            placeholder="Es. Maria Rossi"
+          />
+        </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label style={labelStyle}>📧 Email (opzionale)</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">📧 Email (opz.)</label>
             <input
               type="email"
-              style={inputStyle}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-sm text-slate-700"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="maria@example.com"
+              placeholder="maria@ex.com"
             />
           </div>
           <div>
-            <label style={labelStyle}>📱 Telefono (opzionale)</label>
+            <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">📱 Telefono (opz.)</label>
             <input
               type="tel"
-              style={inputStyle}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-sm text-slate-700"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="333 1234567"
@@ -182,55 +196,48 @@ export default function OpNewAppointmentPage() {
           </div>
         </div>
 
-        <div style={{ ...checkboxRow, border: '1px solid #e2e8f0', padding: '12px', borderRadius: '8px', alignItems: 'flex-start' }}>
+        <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
           <input
             type="checkbox"
             id="marketingConsentOp"
+            className="mt-1 w-5 h-5 rounded border-slate-300 text-amber-500 focus:ring-amber-400"
             checked={marketingConsent}
             onChange={(e) => setMarketingConsent(e.target.checked)}
-            style={{ ...checkboxStyle, marginTop: '4px' }}
           />
-          <label htmlFor="marketingConsentOp" style={{ fontSize: '0.875rem', color: '#0f172a', lineHeight: '1.4' }}>
+          <label htmlFor="marketingConsentOp" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
             Consenso comunicazioni marketing (email/WhatsApp).
-            <br />
-            <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-              (Non serve per i promemoria dell’appuntamento.)
-            </span>
+            <span className="block text-[10px] text-slate-400 mt-1 italic">(Non serve per i promemoria automatici)</span>
           </label>
         </div>
 
-        <label style={labelStyle}>💰 Importo (€)</label>
-        <input
-          style={inputStyle}
-          value={grossEuro}
-          onChange={(e) => setGrossEuro(e.target.value)}
-          inputMode="decimal"
-          placeholder="80"
-        />
+        <div>
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">💰 Importo (€)</label>
+          <input
+            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all font-bold text-slate-700"
+            value={grossEuro}
+            onChange={(e) => setGrossEuro(e.target.value)}
+            inputMode="decimal"
+          />
+        </div>
 
-        <label style={labelStyle}>
-          📝 Note {isAltro ? <span style={{ color: '#dc2626', fontWeight: 600 }}>(obbligatorio per &quot;Altro&quot;)</span> : '(opzionale)'}
-        </label>
-        {isAltro && (
-          <p style={{ fontSize: '0.8rem', color: '#f59e0b', marginBottom: '8px', marginTop: '-4px' }}>
-            ⚠️ Specifica il tipo di servizio nelle note
-          </p>
-        )}
-        <textarea
-          style={{
-            ...inputStyle,
-            minHeight: '80px',
-            resize: 'vertical',
-            borderColor: isAltro && !notes.trim() ? '#f59e0b' : '#e2e8f0'
-          }}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-          placeholder={isAltro ? "Es. Consulenza specifica per..." : "Aggiungi note..."}
-        />
+        <div>
+          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5 ml-1">
+            📝 Note {isAltro && <span className="text-red-500">*</span>}
+          </label>
+          <textarea
+            className={`w-full px-4 py-3 bg-white border rounded-xl focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition-all text-slate-700 min-h-[100px] ${isAltro && !notes.trim() ? 'border-amber-300 bg-amber-50/20' : 'border-slate-200'}`}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder={isAltro ? "Specifica il tipo di servizio qui..." : "Aggiungi note facoltative..."}
+          />
+        </div>
 
-        <button onClick={save} disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.7 : 1 }}>
-          {loading ? <><Spinner size="sm" /> Salvataggio...</> : '✓ Salva appuntamento'}
+        <button
+          onClick={save}
+          disabled={loading}
+          className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-slate-800 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {loading ? <Spinner size="sm" /> : '✓ Conferma Appuntamento'}
         </button>
       </div>
     </div>

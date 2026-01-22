@@ -36,10 +36,13 @@ export default function AdminOperatorsPage() {
     const [editName, setEditName] = useState('');
     const [editRate, setEditRate] = useState('');
 
+
     // Service management state
     const [servicesOpId, setServicesOpId] = useState<string | null>(null);
     const [opServices, setOpServices] = useState<OperatorService[]>([]);
+    const [initialOpServices, setInitialOpServices] = useState<OperatorService[]>([]); // Track original state
     const [servicesLoading, setServicesLoading] = useState(false);
+    const [servicesSaving, setServicesSaving] = useState(false); // Track saving state
 
     async function loadOperatorServices(opId: string) {
         setServicesLoading(true);
@@ -47,37 +50,73 @@ export default function AdminOperatorsPage() {
         if (error) {
             setErr(humanError(error.message));
         } else {
-            setOpServices((data ?? []) as OperatorService[]);
+            const services = (data ?? []) as OperatorService[];
+            setOpServices(services);
+            setInitialOpServices(JSON.parse(JSON.stringify(services))); // Deep copy for comparison
         }
         setServicesLoading(false);
     }
 
-    async function toggleService(opId: string, serviceId: string, currentlyAssigned: boolean) {
-        const { error } = await supabase.rpc('admin_toggle_operator_service', {
-            p_operator_id: opId,
-            p_service_id: serviceId,
-            p_assign: !currentlyAssigned
+    // Local toggle only
+    function toggleServiceLocal(serviceId: string) {
+        setOpServices(prev => prev.map(s =>
+            s.service_id === serviceId ? { ...s, assigned: !s.assigned } : s
+        ));
+    }
+
+    async function saveServices() {
+        if (!servicesOpId) return;
+        setServicesSaving(true);
+        setErr(null);
+
+        // Find changed services
+        const changes = opServices.filter(current => {
+            const original = initialOpServices.find(init => init.service_id === current.service_id);
+            return original && original.assigned !== current.assigned;
         });
-        if (error) {
-            setErr(humanError(error.message));
-        } else {
-            // Update local state
-            setOpServices(prev => prev.map(s =>
-                s.service_id === serviceId ? { ...s, assigned: !currentlyAssigned } : s
-            ));
-            setSuccess(`Servizio ${!currentlyAssigned ? 'assegnato' : 'rimosso'}!`);
+
+        if (changes.length === 0) {
+            setServicesOpId(null);
+            setServicesSaving(false);
+            return;
         }
+
+        // Execute updates in parallel
+        const promises = changes.map(svc =>
+            supabase.rpc('admin_toggle_operator_service', {
+                p_operator_id: servicesOpId,
+                p_service_id: svc.service_id,
+                p_assign: svc.assigned
+            })
+        );
+
+        const results = await Promise.all(promises);
+        const errors = results.filter(r => r.error);
+
+        if (errors.length > 0) {
+            setErr(`Si sono verificati ${errors.length} errori durante il salvataggio.`);
+        } else {
+            setSuccess('Servizi aggiornati con successo!');
+            setServicesOpId(null);
+        }
+        setServicesSaving(false);
+    }
+
+    function cancelServices() {
+        setServicesOpId(null);
+        setOpServices([]);
+        setInitialOpServices([]);
     }
 
     function openServices(opId: string) {
         if (servicesOpId === opId) {
-            setServicesOpId(null);
-            setOpServices([]);
+            cancelServices();
         } else {
             setServicesOpId(opId);
             loadOperatorServices(opId);
         }
     }
+
 
     async function loadOperators() {
         setLoading(true);
@@ -95,6 +134,7 @@ export default function AdminOperatorsPage() {
             .order('display_name');
 
         if (error) {
+            console.error('Error loading operators:', error); // Log for debugging
             setErr(humanError(error.message));
         } else {
             setOperators(data ?? []);
@@ -106,48 +146,6 @@ export default function AdminOperatorsPage() {
         loadOperators();
     }, []);
 
-    async function linkUser(e: React.FormEvent) {
-        e.preventDefault();
-        setSaving(true);
-        setErr(null);
-        setSuccess(null);
-
-        if (!email.trim() || !displayName.trim()) {
-            setErr('Email e nome sono obbligatori.');
-            setSaving(false);
-            return;
-        }
-
-        const rate = parseFloat(commissionRate) / 100;
-        if (isNaN(rate) || rate < 0 || rate > 1) {
-            setErr('La percentuale commissione deve essere tra 0 e 100.');
-            setSaving(false);
-            return;
-        }
-
-        const { error } = await supabase.rpc('admin_link_user_to_operator', {
-            p_user_email: email.trim(),
-            p_display_name: displayName.trim(),
-            p_commission_rate: rate,
-        });
-
-        if (error) {
-            if (error.message.includes('user_not_found')) {
-                setErr(`Utente con email "${email}" non trovato. L'utente deve prima registrarsi.`);
-            } else {
-                setErr(humanError(error.message));
-            }
-            setSaving(false);
-            return;
-        }
-
-        setSuccess(`Operatore "${displayName}" collegato con successo!`);
-        setEmail('');
-        setDisplayName('');
-        setCommissionRate('20');
-        setSaving(false);
-        loadOperators();
-    }
 
     function startEdit(op: Operator) {
         setEditingId(op.id);
@@ -197,19 +195,11 @@ export default function AdminOperatorsPage() {
     // Styles
     const pageStyle: React.CSSProperties = { padding: '16px' };
     const titleStyle: React.CSSProperties = { fontSize: '1.5rem', fontWeight: 700, color: '#0f172a', fontFamily: 'Poppins, sans-serif', marginBottom: '16px' };
-    const cardStyle: React.CSSProperties = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '20px', marginBottom: '24px' };
-    const cardTitleStyle: React.CSSProperties = { fontSize: '1rem', fontWeight: 600, color: '#0f172a', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' };
-    const hintStyle: React.CSSProperties = { fontSize: '0.875rem', color: '#64748b', marginBottom: '16px' };
-    const labelStyle: React.CSSProperties = { display: 'block', fontSize: '0.875rem', fontWeight: 500, color: '#475569', marginBottom: '6px' };
-    const inputStyle: React.CSSProperties = { width: '100%', padding: '12px 14px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', minHeight: '48px', marginBottom: '16px' };
-    const btnPrimary: React.CSSProperties = { width: '100%', background: 'linear-gradient(135deg, #f4f119 0%, #ff9900 100%)', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '14px 20px', fontWeight: 600, cursor: 'pointer', fontSize: '1rem' };
     const sectionTitle: React.CSSProperties = { fontSize: '1rem', fontWeight: 600, marginBottom: '12px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' };
     const tableContainer: React.CSSProperties = { overflowX: 'auto', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' };
     const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' };
     const thStyle: React.CSSProperties = { textAlign: 'left', padding: '12px', fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
     const tdStyle: React.CSSProperties = { padding: '12px', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
-    const errorBox: React.CSSProperties = { background: '#fee2e2', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '12px', color: '#991b1b', marginBottom: '16px', fontSize: '0.875rem' };
-    const successBox: React.CSSProperties = { background: '#d1fae5', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '12px', color: '#065f46', marginBottom: '16px', fontSize: '0.875rem' };
     const badgeYes: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#d1fae5', color: '#065f46', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600 };
     const badgeNo: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#fef3c7', color: '#92400e', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600 };
     const editBtn: React.CSSProperties = { background: 'transparent', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px', cursor: 'pointer', fontSize: '0.8rem' };
@@ -225,178 +215,159 @@ export default function AdminOperatorsPage() {
         <div style={pageStyle}>
             <h1 style={titleStyle}>Gestione Operatori</h1>
 
-            {/* Form nuovo operatore */}
-            <div style={cardStyle}>
-                <h2 style={cardTitleStyle}>➕ Collega Nuovo Operatore</h2>
-                <p style={hintStyle}>
-                    L&apos;utente deve già essersi registrato. Questa funzione collega l&apos;account esistente come operatore.
-                </p>
 
-                <form onSubmit={linkUser}>
-                    <label style={labelStyle}>Email utente (già registrato)</label>
-                    <input
-                        type="email"
-                        style={inputStyle}
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="operatore@esempio.com"
-                        required
-                    />
+            {
+                operators.length === 0 ? (
+                    <EmptyState {...emptyStates.noOperators} />
+                ) : (
 
-                    <label style={labelStyle}>Nome visualizzato</label>
-                    <input
-                        type="text"
-                        style={inputStyle}
-                        value={displayName}
-                        onChange={(e) => setDisplayName(e.target.value)}
-                        placeholder="Es. Dott. Mario Rossi"
-                        required
-                    />
+                    <div className="space-y-4">
+                        {/* Header Desktop */}
+                        <div className="hidden md:grid md:grid-cols-12 md:gap-4 px-4 py-2 font-semibold text-slate-500 border-b border-slate-200 bg-slate-50 rounded-t-lg">
+                            <div className="md:col-span-4 pl-2">Nome</div>
+                            <div className="md:col-span-2 text-center">Commissione</div>
+                            <div className="md:col-span-2 text-center">Account</div>
+                            <div className="md:col-span-4 text-right pr-2">Azioni</div>
+                        </div>
 
-                    <label style={labelStyle}>Commissione studio (%)</label>
-                    <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
-                        style={inputStyle}
-                        value={commissionRate}
-                        onChange={(e) => setCommissionRate(e.target.value)}
-                        placeholder="20"
-                    />
-                    <p style={{ ...hintStyle, marginTop: '-8px' }}>Percentuale trattenuta dallo studio su ogni visita.</p>
-
-                    {err && <div style={errorBox}>⚠️ {err}</div>}
-                    {success && <div style={successBox}>✓ {success}</div>}
-
-                    <button type="submit" disabled={saving} style={{ ...btnPrimary, opacity: saving ? 0.7 : 1 }}>
-                        {saving ? <><Spinner size="sm" /> Collego...</> : 'Collega Operatore'}
-                    </button>
-                </form>
-            </div>
-
-            {/* Lista operatori */}
-            <h2 style={sectionTitle}>👥 Operatori Attuali</h2>
-
-            {operators.length === 0 ? (
-                <EmptyState {...emptyStates.noOperators} />
-            ) : (
-                <div style={tableContainer}>
-                    <table style={tableStyle}>
-                        <thead>
-                            <tr>
-                                <th style={thStyle}>Nome</th>
-                                <th style={{ ...thStyle, textAlign: 'center' }}>Commissione</th>
-                                <th style={{ ...thStyle, textAlign: 'center' }}>Account</th>
-                                <th style={{ ...thStyle, textAlign: 'center' }}>Azioni</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {operators.map((op) => (
-                                <React.Fragment key={op.id}>
-                                    <tr>
-                                        {editingId === op.id ? (
-                                            <>
-                                                <td style={tdStyle}>
-                                                    <input
-                                                        type="text"
-                                                        style={{ ...inlineInput, width: '100%' }}
-                                                        value={editName}
-                                                        onChange={(e) => setEditName(e.target.value)}
-                                                    />
-                                                </td>
-                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        {operators.map((op) => (
+                            <div key={op.id} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                                <div className="p-4 flex flex-col gap-3 md:grid md:grid-cols-12 md:gap-4 md:items-center">
+                                    {editingId === op.id ? (
+                                        <>
+                                            {/* EDIT MODE */}
+                                            <div className="md:col-span-4 w-full">
+                                                <label className="block text-xs text-slate-400 mb-1 md:hidden">Nome</label>
+                                                <input
+                                                    type="text"
+                                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                                                    value={editName}
+                                                    onChange={(e) => setEditName(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="md:col-span-2 text-center flex items-center justify-between md:justify-center">
+                                                <label className="text-sm text-slate-500 md:hidden">Commissione:</label>
+                                                <div className="flex items-center gap-1">
                                                     <input
                                                         type="number"
                                                         min="0"
                                                         max="100"
-                                                        style={{ ...inlineInput, width: '60px', textAlign: 'center' }}
+                                                        className="w-16 px-2 py-1 text-center border border-slate-300 rounded-lg text-sm"
                                                         value={editRate}
                                                         onChange={(e) => setEditRate(e.target.value)}
                                                     />
-                                                    <span style={{ marginLeft: '4px' }}>%</span>
-                                                </td>
-                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
+                                                    <span className="text-slate-500">%</span>
+                                                </div>
+                                            </div>
+                                            <div className="md:col-span-2 text-center flex justify-between md:justify-center items-center">
+                                                <label className="text-sm text-slate-500 md:hidden">Account:</label>
+                                                <div className="opacity-50">
                                                     {op.user_id ? <span style={badgeYes}>✓ Sì</span> : <span style={badgeNo}>✗ No</span>}
-                                                </td>
-                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                                    <button onClick={() => saveEdit(op.id)} style={saveBtn}>✓</button>
-                                                    <button onClick={cancelEdit} style={cancelBtn}>✗</button>
-                                                </td>
-                                            </>
+                                                </div>
+                                            </div>
+                                            <div className="md:col-span-4 text-right flex gap-2 justify-end mt-2 md:mt-0">
+                                                <button onClick={() => saveEdit(op.id)} style={saveBtn}>✓ Salva</button>
+                                                <button onClick={cancelEdit} style={cancelBtn}>✗</button>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {/* READ MODE */}
+                                            <div className="md:col-span-4 flex justify-between items-start w-full">
+                                                <span className="font-semibold text-slate-800">{op.display_name}</span>
+                                                {/* Mobile Badge */}
+                                                <div className="md:hidden">
+                                                    {op.user_id ? <span style={badgeYes}>✓ Sì</span> : <span style={badgeNo}>✗ No</span>}
+                                                </div>
+                                            </div>
+
+                                            <div className="md:col-span-2 flex justify-between items-center md:justify-center w-full">
+                                                <span className="text-sm text-slate-500 md:hidden">Commissione:</span>
+                                                <span className="font-medium text-slate-700">{((op.commission_rate ?? 0) * 100).toFixed(0)}%</span>
+                                            </div>
+
+                                            <div className="md:col-span-2 hidden md:flex justify-center">
+                                                {op.user_id ? <span style={badgeYes}>✓ Sì</span> : <span style={badgeNo}>✗ No</span>}
+                                            </div>
+
+                                            <div className="md:col-span-4 flex justify-end gap-2 w-full mt-2 md:mt-0">
+                                                <button onClick={() => startEdit(op)} style={{ ...editBtn, marginRight: '0' }} className="flex items-center gap-1">
+                                                    ✏️ <span className="md:hidden">Modifica</span>
+                                                </button>
+                                                <button
+                                                    onClick={() => openServices(op.id)}
+                                                    style={{
+                                                        ...editBtn,
+                                                        background: servicesOpId === op.id ? '#fef3c7' : 'transparent'
+                                                    }}
+                                                    className="flex items-center gap-1"
+                                                >
+                                                    🏷️ <span className="md:show">Servizi</span>
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* SERVICES EXPANSION */}
+                                {servicesOpId === op.id && (
+                                    <div className="bg-slate-50 border-t border-slate-100 p-4 animate-in slide-in-from-top-2 duration-200">
+                                        <h4 className="text-xs font-semibold uppercase text-slate-400 mb-3 tracking-wider">
+                                            Servizi Abilitati
+                                        </h4>
+                                        {servicesLoading ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b' }}>
+                                                <Spinner size="sm" /> Caricamento servizi...
+                                            </div>
                                         ) : (
-                                            <>
-                                                <td style={{ ...tdStyle, fontWeight: 500 }}>{op.display_name}</td>
-                                                <td style={{ ...tdStyle, textAlign: 'center' }}>{((op.commission_rate ?? 0) * 100).toFixed(0)}%</td>
-                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                                    {op.user_id ? (
-                                                        <span style={badgeYes}>✓ Sì</span>
-                                                    ) : (
-                                                        <span style={badgeNo}>✗ No</span>
-                                                    )}
-                                                </td>
-                                                <td style={{ ...tdStyle, textAlign: 'center' }}>
-                                                    <button onClick={() => startEdit(op)} style={{ ...editBtn, marginRight: '6px' }}>
-                                                        ✏️
+
+                                            <div className="flex flex-col gap-4">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {opServices.length === 0 && <span className="text-sm text-slate-400 italic">Nessun servizio.</span>}
+                                                    {opServices.map(svc => (
+                                                        <label
+                                                            key={svc.service_id}
+                                                            className={`
+                                                        flex items-center gap-2 px-3 py-2 rounded-full border text-sm cursor-pointer transition-colors
+                                                        ${svc.assigned
+                                                                    ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                                                                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}
+                                                    `}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={svc.assigned}
+                                                                onChange={() => toggleServiceLocal(svc.service_id)}
+                                                                className="accent-emerald-500 w-4 h-4"
+                                                            />
+                                                            {svc.service_name}
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                                <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                                                    <button
+                                                        onClick={cancelServices}
+                                                        className="px-4 py-2 text-sm font-medium text-slate-500 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+                                                    >
+                                                        Annulla
                                                     </button>
                                                     <button
-                                                        onClick={() => openServices(op.id)}
-                                                        style={{
-                                                            ...editBtn,
-                                                            background: servicesOpId === op.id ? '#fef3c7' : 'transparent'
-                                                        }}
+                                                        onClick={saveServices}
+                                                        disabled={servicesSaving}
+                                                        className="px-4 py-2 text-sm font-medium text-white bg-emerald-500 rounded-lg hover:bg-emerald-600 disabled:opacity-50 flex items-center gap-2"
                                                     >
-                                                        🏷️ Servizi
+                                                        {servicesSaving ? <Spinner size="sm" /> : '✓'} Salva Modifiche
                                                     </button>
-                                                </td>
-                                            </>
+                                                </div>
+                                            </div>
                                         )}
-                                    </tr>
-                                    {/* Expandable services row */}
-                                    {servicesOpId === op.id && (
-                                        <tr>
-                                            <td colSpan={4} style={{ padding: '12px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                                                {servicesLoading ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b' }}>
-                                                        <Spinner size="sm" /> Caricamento servizi...
-                                                    </div>
-                                                ) : (
-                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                                                        {opServices.map(svc => (
-                                                            <label
-                                                                key={svc.service_id}
-                                                                style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '6px',
-                                                                    padding: '6px 12px',
-                                                                    background: svc.assigned ? '#d1fae5' : '#fff',
-                                                                    border: `1px solid ${svc.assigned ? '#10b981' : '#e2e8f0'}`,
-                                                                    borderRadius: '20px',
-                                                                    cursor: 'pointer',
-                                                                    fontSize: '0.8rem'
-                                                                }}
-                                                            >
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={svc.assigned}
-                                                                    onChange={() => toggleService(op.id, svc.service_id, svc.assigned)}
-                                                                    style={{ accentColor: '#10b981' }}
-                                                                />
-                                                                {svc.service_name}
-                                                            </label>
-                                                        ))}
-                                                    </div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    )}
-                                </React.Fragment>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
-        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )
+            }
+        </div >
     );
 }

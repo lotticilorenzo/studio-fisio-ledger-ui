@@ -14,47 +14,30 @@ function AdminNav() {
     { href: '/admin/appointments', label: 'Appuntamenti', icon: '📅' },
     { href: '/admin/operators', label: 'Operatori', icon: '👥' },
     { href: '/admin/services', label: 'Servizi', icon: '🏷️' },
+    { href: '/admin/stats', label: 'Statistiche', icon: '📊' },
   ];
 
-  const navStyle: React.CSSProperties = {
-    background: '#ffffff',
-    borderBottom: '1px solid #e2e8f0',
-    padding: '8px 16px',
-    overflowX: 'auto',
-    WebkitOverflowScrolling: 'touch',
-  };
-
-  const navInnerStyle: React.CSSProperties = {
-    display: 'flex',
-    gap: '8px',
-    maxWidth: '1024px',
-    margin: '0 auto',
-  };
-
-  const linkStyle = (isActive: boolean): React.CSSProperties => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 16px',
-    fontSize: '0.875rem',
-    fontWeight: isActive ? 600 : 500,
-    color: isActive ? '#0f172a' : '#475569',
-    background: isActive ? 'linear-gradient(135deg, #f4f119 0%, #ff9900 100%)' : 'transparent',
-    borderRadius: '8px',
-    textDecoration: 'none',
-    whiteSpace: 'nowrap',
-    transition: 'all 0.15s ease',
-  });
-
   return (
-    <nav style={navStyle}>
-      <div style={navInnerStyle}>
+    <nav className="bg-white border-b border-slate-200 sticky top-[65px] z-10 shadow-sm">
+      <div className="grid grid-cols-4 md:flex md:items-center md:gap-2 p-2 md:px-4 max-w-5xl md:mx-auto w-full">
         {links.map((link) => {
           const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
           return (
-            <Link key={link.href} href={link.href} style={linkStyle(isActive)}>
-              <span>{link.icon}</span>
-              {link.label}
+            <Link
+              key={link.href}
+              href={link.href}
+              className={`
+                flex flex-col md:flex-row items-center justify-center md:justify-start
+                gap-1 md:gap-2 px-1 py-2 md:px-4 md:py-2 rounded-lg transition-all
+                ${isActive
+                  ? 'bg-gradient-to-br from-yellow-300 to-orange-400 text-slate-900 shadow-sm font-semibold'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'}
+              `}
+            >
+              <span className="text-xl md:text-lg leading-none mb-1 md:mb-0">{link.icon}</span>
+              <span className="text-[10px] md:text-sm leading-none truncate w-full text-center md:w-auto md:text-left">
+                {link.label}
+              </span>
             </Link>
           );
         })}
@@ -75,7 +58,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (loading || !user) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <LoadingState />
       </div>
     );
@@ -85,25 +68,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return null;
   }
 
-  const shellStyle: React.CSSProperties = {
-    minHeight: '100vh',
-    background: '#f8fafc',
-    display: 'flex',
-    flexDirection: 'column',
-  };
-
-  const mainStyle: React.CSSProperties = {
-    flex: 1,
-    maxWidth: '1024px',
-    margin: '0 auto',
-    width: '100%',
-  };
-
   return (
-    <div style={shellStyle}>
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
       <AppHeader subtitle="Area Amministrazione" />
       <AdminNav />
-      <main style={mainStyle}>
+      {/* Added responsive padding bottom for mobile ease of use */}
+      <main className="flex-1 w-full max-w-5xl mx-auto pb-20 md:pb-8">
         {children}
       </main>
     </div>

@@ -54,9 +54,15 @@ export default function AdminAppointmentsPage() {
   const [err, setErr] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
 
+
+  // Pagination & Search state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [visibleCount, setVisibleCount] = useState(20);
+
   async function load(month: string) {
     setLoading(true);
     setErr(null);
+    setVisibleCount(20); // Reset pagination on reload
 
     const { start, end } = getMonthRange(month);
 
@@ -70,17 +76,22 @@ export default function AdminAppointmentsPage() {
 
     if (appointmentsRes.error) setErr(humanError(appointmentsRes.error.message));
 
-    const mappedRows = (appointmentsRes.data ?? []).map((r: { id: string; starts_at: string; status: string; gross_amount_cents: number; commission_rate: number; commission_amount_cents: number; operator_name: string; service_name: string; patient_name: string }) => ({
-      id: r.id,
-      starts_at: r.starts_at,
-      status: r.status,
-      gross_amount_cents: r.gross_amount_cents,
-      commission_rate: r.commission_rate,
-      commission_amount_cents: r.commission_amount_cents,
-      operators: r.operator_name ? { display_name: r.operator_name } : null,
-      services: r.service_name ? { name: r.service_name } : null,
-      patients: r.patient_name ? { full_name: r.patient_name } : null,
-    }));
+    const mappedRows = (appointmentsRes.data ?? []).map((r: { id: string; starts_at: string; status: string; gross_amount_cents: number; commission_rate: number; commission_amount_cents: number; operator_name: string; service_name: string; patient_name: string }) => {
+      const isPast = new Date(r.starts_at) < new Date();
+      const effectiveStatus = r.status === 'scheduled' && isPast ? 'completed' : r.status;
+
+      return {
+        id: r.id,
+        starts_at: r.starts_at,
+        status: effectiveStatus,
+        gross_amount_cents: r.gross_amount_cents,
+        commission_rate: r.commission_rate,
+        commission_amount_cents: r.commission_amount_cents,
+        operators: r.operator_name ? { display_name: r.operator_name } : null,
+        services: r.service_name ? { name: r.service_name } : null,
+        patients: r.patient_name ? { full_name: r.patient_name } : null,
+      }
+    });
     setRows(mappedRows);
 
     if (!summaryRes.error && summaryRes.data) {
@@ -171,6 +182,20 @@ export default function AdminAppointmentsPage() {
     load(selectedMonth);
   }, [selectedMonth]);
 
+  const filteredRows = useMemo(() => {
+    if (!searchTerm.trim()) return rows;
+    const lower = searchTerm.toLowerCase();
+    return rows.filter(r =>
+      (r.operators?.display_name ?? '').toLowerCase().includes(lower) ||
+      (r.services?.name ?? '').toLowerCase().includes(lower) ||
+      (r.patients?.full_name ?? '').toLowerCase().includes(lower)
+    );
+  }, [rows, searchTerm]);
+
+  const visibleRows = useMemo(() => {
+    return filteredRows.slice(0, visibleCount);
+  }, [filteredRows, visibleCount]);
+
   const totaleLordo = useMemo(() => rows.reduce((s, r) => s + (r.gross_amount_cents ?? 0), 0), [rows]);
   const totaleComm = useMemo(() => rows.reduce((s, r) => s + (r.commission_amount_cents ?? 0), 0), [rows]);
   const totaleNetto = totaleLordo - totaleComm;
@@ -194,6 +219,8 @@ export default function AdminAppointmentsPage() {
   const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' };
   const thStyle: React.CSSProperties = { textAlign: 'left', padding: '12px', fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
   const tdStyle: React.CSSProperties = { padding: '12px', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
+  const btnLoadMore: React.CSSProperties = { width: '100%', padding: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '8px', marginTop: '16px', fontWeight: 600, cursor: 'pointer', textAlign: 'center' };
+
 
   return (
     <div style={pageStyle}>
@@ -218,9 +245,10 @@ export default function AdminAppointmentsPage() {
         <button onClick={() => load(selectedMonth)} style={{ ...btnSecondary, padding: '8px 12px' }}>↻</button>
       </div>
 
+
       {/* KPI Cards - Commissioni evidenziato (guadagno studio) */}
       <KpiGrid>
-        <KpiCard value={rows.length} label="Appuntamenti" icon="📅" />
+        <KpiCard value={filteredRows.length} label="Appuntamenti" icon="📅" />
         <KpiCard value={eur(totaleLordo)} label="Lordo" icon="💰" />
         <KpiCard value={eur(totaleComm)} label="Commissioni" highlight icon="💼" />
         <KpiCard value={eur(totaleNetto)} label="Netto Op." icon="👤" />
@@ -268,8 +296,60 @@ export default function AdminAppointmentsPage() {
       {/* Appointments Table */}
       {!loading && !err && (
         <div>
+
           <h2 style={sectionTitle}>📋 Elenco appuntamenti</h2>
-          <div style={tableContainer}>
+
+          {/* Search Bar */}
+          <div style={{ marginBottom: '16px' }}>
+            <input
+              type="text"
+              placeholder="🔍 Cerca operatore, servizio, paziente..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setVisibleCount(20); // Reset scroll on search
+              }}
+              style={{ ...inputStyle, width: '100%' }}
+            />
+          </div>
+
+          {/* Mobile List (Visible < md) */}
+          <div className="md:hidden space-y-4">
+            {filteredRows.length === 0 ? (
+              <div className="text-center p-8 text-slate-400 bg-white rounded-xl border border-slate-200">
+                {searchTerm ? 'Nessun risultato trovato.' : 'Nessun appuntamento nel mese selezionato.'}
+              </div>
+            ) : (
+              visibleRows.map((r) => (
+                <div key={r.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <div className="font-semibold text-slate-800">
+                        {new Date(r.starts_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <div className="text-sm text-slate-500 mt-1">{r.operators?.display_name ?? '-'}</div>
+                    </div>
+                    <Badge status={r.status} />
+                  </div>
+
+                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+                    <div className="text-sm font-medium text-slate-700">
+                      {eur(r.gross_amount_cents ?? 0)}
+                    </div>
+                    <button
+                      onClick={() => router.push(`/admin/appointments/${r.id}`)}
+                      className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors flex items-center gap-2"
+                    >
+                      👁️ Dettagli
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table (Visible >= md) */}
+          <div className="hidden md:block overflow-x-auto bg-white border border-slate-200 rounded-xl">
             <table style={tableStyle}>
               <thead>
                 <tr>
@@ -284,15 +364,15 @@ export default function AdminAppointmentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.length === 0 ? (
+                {filteredRows.length === 0 ? (
                   <tr>
                     <td colSpan={8} style={{ ...tdStyle, textAlign: 'center', padding: '32px', color: '#94a3b8' }}>
-                      Nessun appuntamento nel mese selezionato.
+                      {searchTerm ? 'Nessun risultato trovato.' : 'Nessun appuntamento nel mese selezionato.'}
                     </td>
                   </tr>
                 ) : (
-                  rows.map((r) => (
-                    <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => router.push(`/admin/appointments/${r.id}`)}>
+                  visibleRows.map((r) => (
+                    <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => router.push(`/admin/appointments/${r.id}`)} className="hover:bg-slate-50 transition-colors">
                       <td style={tdStyle}>{new Date(r.starts_at).toLocaleString('it-IT')}</td>
                       <td style={tdStyle}>{r.operators?.display_name ?? '-'}</td>
                       <td style={tdStyle}>{r.services?.name ?? '-'}</td>
@@ -309,6 +389,20 @@ export default function AdminAppointmentsPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Load More Button */}
+          {visibleCount < filteredRows.length && (
+            <button
+              onClick={() => setVisibleCount(prev => prev + 20)}
+              style={btnLoadMore}
+            >
+              🔽 Carica altri {filteredRows.length - visibleCount > 20 ? 20 : filteredRows.length - visibleCount} appuntamenti
+              <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 400, marginTop: '4px' }}>
+                (Visualizzati {visibleCount} di {filteredRows.length})
+              </span>
+            </button>
+          )}
+
         </div>
       )}
     </div>

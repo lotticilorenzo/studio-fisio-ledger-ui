@@ -11,45 +11,32 @@ function OpNav() {
     const pathname = usePathname();
 
     const links = [
-        { href: '/op/appointments', label: 'I miei appuntamenti', icon: '📅' },
+        { href: '/op/appointments', label: 'Appuntamenti', icon: '📅' },
+        { href: '/op/patients', label: 'Pazienti', icon: '👤' },
+        { href: '/op/stats', label: 'Statistiche', icon: '📊' },
     ];
 
-    const navStyle: React.CSSProperties = {
-        background: '#ffffff',
-        borderBottom: '1px solid #e2e8f0',
-        padding: '8px 16px',
-    };
-
-    const navInnerStyle: React.CSSProperties = {
-        display: 'flex',
-        gap: '8px',
-        maxWidth: '448px',
-        margin: '0 auto',
-    };
-
-    const linkStyle = (isActive: boolean): React.CSSProperties => ({
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        padding: '8px 16px',
-        fontSize: '0.875rem',
-        fontWeight: isActive ? 600 : 500,
-        color: isActive ? '#0f172a' : '#475569',
-        background: isActive ? 'linear-gradient(135deg, #f4f119 0%, #ff9900 100%)' : 'transparent',
-        borderRadius: '8px',
-        textDecoration: 'none',
-        whiteSpace: 'nowrap',
-    });
-
     return (
-        <nav style={navStyle}>
-            <div style={navInnerStyle}>
+        <nav className="bg-white border-b border-slate-200 sticky top-[65px] z-10 shadow-sm">
+            <div className="grid grid-cols-3 p-2 px-4 max-w-md mx-auto w-full gap-2">
                 {links.map((link) => {
-                    const isActive = pathname === link.href;
+                    const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
                     return (
-                        <Link key={link.href} href={link.href} style={linkStyle(isActive)}>
-                            <span>{link.icon}</span>
-                            {link.label}
+                        <Link
+                            key={link.href}
+                            href={link.href}
+                            className={`
+                                flex flex-col items-center justify-center
+                                gap-1 px-1 py-2 rounded-lg transition-all
+                                ${isActive
+                                    ? 'bg-gradient-to-br from-yellow-300 to-orange-400 text-slate-900 shadow-sm font-semibold'
+                                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'}
+                            `}
+                        >
+                            <span className="text-xl leading-none mb-1">{link.icon}</span>
+                            <span className="text-[10px] leading-none truncate w-full text-center">
+                                {link.label}
+                            </span>
                         </Link>
                     );
                 })}
@@ -63,31 +50,17 @@ export default function OpLayout({ children }: { children: React.ReactNode }) {
 
     if (loading || !user) {
         return (
-            <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
                 <LoadingState />
             </div>
         );
     }
 
-    const shellStyle: React.CSSProperties = {
-        minHeight: '100vh',
-        background: '#f8fafc',
-        display: 'flex',
-        flexDirection: 'column',
-    };
-
-    const mainStyle: React.CSSProperties = {
-        flex: 1,
-        maxWidth: '448px',
-        margin: '0 auto',
-        width: '100%',
-    };
-
     return (
-        <div style={shellStyle}>
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
             <AppHeader subtitle="Area Operatore" />
             <OpNav />
-            <main style={mainStyle}>
+            <main className="flex-1 w-full max-w-md mx-auto pb-20 px-0">
                 {children}
             </main>
         </div>

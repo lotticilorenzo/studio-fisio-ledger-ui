@@ -106,38 +106,33 @@ export default function NewAppointmentPage() {
     router.push('/admin/appointments');
   };
 
+  // No inline styles needed - using global design system classes
+
   return (
-    <main className="p-6 max-w-xl">
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-semibold">Nuovo appuntamento</h1>
+    <div className="app-content container">
+      <div className="page-header">
+        <h1 className="page-title">Nuovo appuntamento</h1>
         <button
           onClick={() => router.push('/admin/appointments')}
-          className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/10 transition"
+          className="btn btn-secondary"
         >
           ← Indietro
         </button>
       </div>
 
-      {error && (
-        <div className="mt-4 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm">
-          {error}
-        </div>
-      )}
-      {ok && (
-        <div className="mt-4 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm">
-          {ok}
-        </div>
-      )}
+      {error && <div className="error-box mb-4">⚠️ {error}</div>}
+      {ok && <div className="success-box mb-4">✅ {ok}</div>}
 
-      <div className="mt-6 space-y-4">
-        <div>
-          <label className="text-sm opacity-80">Operatore</label>
+      <div className="card card-body">
+
+        <div className="form-group">
+          <label className="form-label">Operatore</label>
           <select
-            className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
+            className="form-input form-select"
             value={operatorId}
             onChange={(e) => setOperatorId(e.target.value)}
           >
-            <option value="">Seleziona...</option>
+            <option value="">Seleziona un operatore...</option>
             {operators.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.display_name}
@@ -146,10 +141,10 @@ export default function NewAppointmentPage() {
           </select>
         </div>
 
-        <div>
-          <label className="text-sm opacity-80">Servizio</label>
+        <div className="form-group">
+          <label className="form-label">Servizio</label>
           <select
-            className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
+            className="form-input form-select"
             value={serviceId}
             onChange={(e) => {
               const val = e.target.value;
@@ -169,10 +164,10 @@ export default function NewAppointmentPage() {
           </select>
         </div>
 
-        <div>
-          <label className="text-sm opacity-80">Paziente</label>
+        <div className="form-group">
+          <label className="form-label">Paziente</label>
           <input
-            className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
+            className="form-input"
             type="text"
             placeholder="Es. Mario Rossi"
             value={patientName}
@@ -180,23 +175,23 @@ export default function NewAppointmentPage() {
           />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="form-group flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
           <input
             type="checkbox"
             id="marketingConsent"
             checked={marketingConsent}
             onChange={(e) => setMarketingConsent(e.target.checked)}
-            className="w-5 h-5 rounded border-white/20 bg-black/30 text-yellow-500 focus:ring-yellow-500"
+            className="form-checkbox"
           />
-          <label htmlFor="marketingConsent" className="text-sm">
+          <label htmlFor="marketingConsent" className="text-sm text-slate-600 cursor-pointer select-none">
             Consenso comunicazioni marketing (email/SMS)
           </label>
         </div>
 
-        <div>
-          <label className="text-sm opacity-80">Data e ora</label>
+        <div className="form-group">
+          <label className="form-label">Data e ora</label>
           <input
-            className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
+            className="form-input"
             type="datetime-local"
             min={minDate}
             value={startsAt}
@@ -204,11 +199,11 @@ export default function NewAppointmentPage() {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-sm opacity-80">Stato</label>
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="form-group">
+            <label className="form-label">Stato</label>
             <select
-              className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
+              className="form-input form-select"
               value={status}
               onChange={(e) => setStatus(e.target.value as "scheduled" | "completed" | "cancelled" | "no_show")}
             >
@@ -219,10 +214,10 @@ export default function NewAppointmentPage() {
             </select>
           </div>
 
-          <div>
-            <label className="text-sm opacity-80">Importo (€)</label>
+          <div className="form-group">
+            <label className="form-label">Importo (€)</label>
             <input
-              className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
+              className="form-input"
               value={grossEur}
               onChange={(e) => setGrossEur(e.target.value)}
               inputMode="decimal"
@@ -230,29 +225,39 @@ export default function NewAppointmentPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border border-white/10 p-3 text-sm">
-          <div>Commissione: {(commissionPreview.rate * 100).toFixed(0)}%</div>
-          <div>Commissione €: {commissionPreview.comm.toFixed(2)}</div>
-          <div>Netto operatore €: {commissionPreview.net.toFixed(2)}</div>
+        <div className="bg-slate-50 p-4 rounded-lg mb-4 text-sm text-slate-600 border border-slate-200">
+          <div className="flex justify-between mb-1">
+            <span>Commissione:</span>
+            <span className="font-semibold text-slate-900">{(commissionPreview.rate * 100).toFixed(0)}%</span>
+          </div>
+          <div className="flex justify-between mb-1">
+            <span>Commissione €:</span>
+            <span className="font-semibold text-slate-900">{commissionPreview.comm.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between pt-2 mt-2 border-t border-slate-200 text-slate-900">
+            <span>Netto operatore:</span>
+            <span className="font-bold">€ {commissionPreview.net.toFixed(2)}</span>
+          </div>
         </div>
 
-        <div>
-          <label className="text-sm opacity-80">Note (opzionale)</label>
+        <div className="form-group">
+          <label className="form-label">Note (opzionale)</label>
           <textarea
-            className="mt-1 w-full rounded-lg bg-black/30 border border-white/10 p-3"
+            className="form-input min-h-[80px]"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
+            placeholder="Aggiungi note..."
           />
         </div>
 
         <button
           onClick={submit}
-          className="w-full rounded-lg bg-white text-black font-medium p-3"
+          className="btn btn-primary w-full mt-2"
         >
-          Salva
+          ✓ Salva Appuntamento
         </button>
       </div>
-    </main>
+    </div>
   );
 }

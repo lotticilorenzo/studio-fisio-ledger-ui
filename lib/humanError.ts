@@ -28,7 +28,7 @@ export function humanError(error: string | null | undefined): string {
         return 'Questo elemento esiste già.';
     }
     if (msg.includes('violates not-null constraint')) {
-        return 'Alcuni campi obbligatori sono vuoti.';
+        return 'Campo obbligatorio mancante: ' + error;
     }
 
     // Auth errors

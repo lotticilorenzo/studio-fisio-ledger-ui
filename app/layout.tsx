@@ -3,6 +3,7 @@ import { Poppins, Nunito } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { ToastProvider } from "@/components/Toast";
+import { SWRegistration } from "@/components/SWRegistration";
 
 const poppins = Poppins({
   weight: ["500", "600", "700"],
@@ -54,6 +55,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <AuthProvider>
+          <SWRegistration />
           <ToastProvider>{children}</ToastProvider>
         </AuthProvider>
       </body>
