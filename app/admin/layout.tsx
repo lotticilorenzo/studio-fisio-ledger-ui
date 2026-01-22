@@ -18,7 +18,7 @@ function AdminNav() {
   ];
 
   return (
-    <nav className="bg-white border-b border-slate-200 sticky top-[65px] z-10 shadow-sm">
+    <nav className="bg-white border-b border-slate-200 sticky top-[65px] z-20 shadow-sm">
       <div className="grid grid-cols-4 md:flex md:items-center md:gap-2 p-2 md:px-4 max-w-5xl md:mx-auto w-full">
         {links.map((link) => {
           const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');

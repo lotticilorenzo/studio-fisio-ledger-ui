@@ -18,6 +18,8 @@ type AppointmentRow = {
   gross_amount_cents: number;
   commission_amount_cents: number;
   commission_rate: number;
+  duration: number;
+  operator_id: string;
   operators?: { display_name: string } | null;
   services?: { name: string } | null;
   patients?: { full_name: string } | null;
@@ -32,8 +34,6 @@ type OperatorSummary = {
   total_net_cents: number;
 };
 
-
-
 function getCurrentMonth() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -46,6 +46,14 @@ function getMonthRange(monthStr: string) {
   return { start, end };
 }
 
+function isSameDay(date1: Date, date2: Date) {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+}
+
 export default function AdminAppointmentsPage() {
   const router = useRouter();
   const [rows, setRows] = useState<AppointmentRow[]>([]);
@@ -53,30 +61,51 @@ export default function AdminAppointmentsPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
-
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [filterMode, setFilterMode] = useState<'month' | 'day'>('month');
+  const [isAgendaView, setIsAgendaView] = useState(false);
 
   // Pagination & Search state
   const [searchTerm, setSearchTerm] = useState('');
   const [visibleCount, setVisibleCount] = useState(20);
 
-  async function load(month: string) {
+  // Generate 14 days for the strip
+  const dateStrip = useMemo(() => {
+    return Array.from({ length: 14 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }, []);
+
+  async function load(monthFilter: string, dateFilter: Date) {
     setLoading(true);
     setErr(null);
-    setVisibleCount(20); // Reset pagination on reload
+    setVisibleCount(20);
 
-    const { start, end } = getMonthRange(month);
+    let start, end;
+    if (filterMode === 'month') {
+      ({ start, end } = getMonthRange(monthFilter));
+    } else {
+      start = new Date(dateFilter);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(dateFilter);
+      end.setHours(23, 59, 59, 999);
+    }
 
     const [appointmentsRes, summaryRes] = await Promise.all([
       supabase.rpc('admin_get_appointments', {
         p_start_date: start.toISOString(),
         p_end_date: end.toISOString()
       }),
-      supabase.rpc('admin_month_summary', { p_year_month: month })
+      filterMode === 'month'
+        ? supabase.rpc('admin_month_summary', { p_year_month: monthFilter })
+        : Promise.resolve({ data: [], error: null })
     ]);
 
     if (appointmentsRes.error) setErr(humanError(appointmentsRes.error.message));
 
-    const mappedRows = (appointmentsRes.data ?? []).map((r: { id: string; starts_at: string; status: string; gross_amount_cents: number; commission_rate: number; commission_amount_cents: number; operator_name: string; service_name: string; patient_name: string }) => {
+    const mappedRows = (appointmentsRes.data ?? []).map((r: any) => {
       const isPast = new Date(r.starts_at) < new Date();
       const effectiveStatus = r.status === 'scheduled' && isPast ? 'completed' : r.status;
 
@@ -87,10 +116,12 @@ export default function AdminAppointmentsPage() {
         gross_amount_cents: r.gross_amount_cents,
         commission_rate: r.commission_rate,
         commission_amount_cents: r.commission_amount_cents,
+        duration: r.duration_minutes ?? 60,
+        operator_id: r.operator_id,
         operators: r.operator_name ? { display_name: r.operator_name } : null,
         services: r.service_name ? { name: r.service_name } : null,
         patients: r.patient_name ? { full_name: r.patient_name } : null,
-      }
+      };
     });
     setRows(mappedRows);
 
@@ -101,9 +132,22 @@ export default function AdminAppointmentsPage() {
     setLoading(false);
   }
 
+  useEffect(() => {
+    load(selectedMonth, selectedDate);
+  }, [selectedMonth, selectedDate, filterMode]);
+
+  const activeOperators = useMemo(() => {
+    const map = new Map();
+    rows.forEach(r => {
+      if (r.operator_id && !map.has(r.operator_id)) {
+        map.set(r.operator_id, r.operators?.display_name || 'Operatore');
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [rows]);
+
   function exportCSV() {
     if (rows.length === 0) return;
-
     const headers = ['Data/Ora', 'Operatore', 'Servizio', 'Stato', 'Lordo', 'Commissione', 'Netto'];
     const csvRows = rows.map(r => {
       const netto = (r.gross_amount_cents ?? 0) - (r.commission_amount_cents ?? 0);
@@ -117,70 +161,15 @@ export default function AdminAppointmentsPage() {
         (netto / 100).toFixed(2),
       ].join(';');
     });
-
     const csv = [headers.join(';'), ...csvRows].join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `appuntamenti-${selectedMonth}.csv`;
+    link.download = `report-${filterMode === 'month' ? selectedMonth : selectedDate.toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   }
-
-  function exportPDF() {
-    if (summary.length === 0) return;
-
-    const doc = new jsPDF();
-    const [year, month] = selectedMonth.split('-');
-    const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
-      'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-    const monthName = monthNames[parseInt(month) - 1];
-
-    doc.setFontSize(20);
-    doc.text('STUDIO FISYO', 105, 20, { align: 'center' });
-    doc.setFontSize(14);
-    doc.text(`Report Commissioni - ${monthName} ${year}`, 105, 30, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text(`Generato il: ${new Date().toLocaleDateString('it-IT')}`, 105, 38, { align: 'center' });
-
-    const tableData = summary.map(s => [
-      s.operator_name,
-      s.num_appointments.toString(),
-      `€${(s.total_gross_cents / 100).toFixed(2)}`,
-      `€${(s.total_commission_cents / 100).toFixed(2)}`,
-      `€${(s.total_net_cents / 100).toFixed(2)}`,
-    ]);
-
-    const totals = summary.reduce((acc, s) => ({
-      appointments: acc.appointments + s.num_appointments,
-      gross: acc.gross + s.total_gross_cents,
-      commission: acc.commission + s.total_commission_cents,
-      net: acc.net + s.total_net_cents,
-    }), { appointments: 0, gross: 0, commission: 0, net: 0 });
-
-    tableData.push([
-      'TOTALE',
-      totals.appointments.toString(),
-      `€${(totals.gross / 100).toFixed(2)}`,
-      `€${(totals.commission / 100).toFixed(2)}`,
-      `€${(totals.net / 100).toFixed(2)}`,
-    ]);
-
-    autoTable(doc, {
-      startY: 45,
-      head: [['Operatore', 'Appuntamenti', 'Lordo', 'Comm. Studio', 'Netto Operatore']],
-      body: tableData,
-      theme: 'striped',
-      headStyles: { fillColor: [41, 128, 185], textColor: 255 },
-    });
-
-    doc.save(`report-commissioni-${selectedMonth}.pdf`);
-  }
-
-  useEffect(() => {
-    load(selectedMonth);
-  }, [selectedMonth]);
 
   const filteredRows = useMemo(() => {
     if (!searchTerm.trim()) return rows;
@@ -192,61 +181,67 @@ export default function AdminAppointmentsPage() {
     );
   }, [rows, searchTerm]);
 
-  const visibleRows = useMemo(() => {
-    return filteredRows.slice(0, visibleCount);
-  }, [filteredRows, visibleCount]);
-
-  const totaleLordo = useMemo(() => rows.reduce((s, r) => s + (r.gross_amount_cents ?? 0), 0), [rows]);
-  const totaleComm = useMemo(() => rows.reduce((s, r) => s + (r.commission_amount_cents ?? 0), 0), [rows]);
+  const visibleRows = useMemo(() => filteredRows.slice(0, visibleCount), [filteredRows, visibleCount]);
+  const totaleLordo = useMemo(() => filteredRows.reduce((sum, r) => sum + (r.gross_amount_cents ?? 0), 0), [filteredRows]);
+  const totaleComm = useMemo(() => filteredRows.reduce((sum, r) => sum + (r.commission_amount_cents ?? 0), 0), [filteredRows]);
   const totaleNetto = totaleLordo - totaleComm;
 
-  // Styles
-  const pageStyle: React.CSSProperties = { padding: '16px' };
-  const headerStyle: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' };
-  // Titolo scuro per migliore leggibilità
-  const titleStyle: React.CSSProperties = {
-    fontSize: '1.5rem',
-    fontWeight: 700,
-    color: '#0f172a',
-    fontFamily: 'Poppins, sans-serif',
-  };
-  const btnPrimary: React.CSSProperties = { background: 'linear-gradient(135deg, #f4f119 0%, #ff9900 100%)', color: '#0f172a', border: 'none', borderRadius: '8px', padding: '8px 16px', fontWeight: 600, cursor: 'pointer' };
-  const btnSecondary: React.CSSProperties = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px 16px', fontWeight: 500, cursor: 'pointer', color: '#475569' };
-  const filterRow: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '16px', alignItems: 'center' };
-  const inputStyle: React.CSSProperties = { padding: '10px 14px', border: '1.5px solid #e2e8f0', borderRadius: '8px', fontSize: '1rem', minHeight: '44px' };
-  const sectionTitle: React.CSSProperties = { fontSize: '1rem', fontWeight: 600, marginBottom: '12px', marginTop: '24px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' };
-  const tableContainer: React.CSSProperties = { overflowX: 'auto', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '12px' };
-  const tableStyle: React.CSSProperties = { width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' };
-  const thStyle: React.CSSProperties = { textAlign: 'left', padding: '12px', fontWeight: 600, color: '#475569', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
-  const tdStyle: React.CSSProperties = { padding: '12px', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' };
-  const btnLoadMore: React.CSSProperties = { width: '100%', padding: '12px', background: '#f1f5f9', color: '#475569', border: '1px solid #e2e8f0', borderRadius: '8px', marginTop: '16px', fontWeight: 600, cursor: 'pointer', textAlign: 'center' };
-
+  const hourHeight = 44;
+  const timeSlots = Array.from({ length: 13 }, (_, i) => 8 + i);
 
   return (
-    <div style={pageStyle}>
-      {/* Header */}
-      <div style={headerStyle}>
-        <h1 style={titleStyle}>Dashboard</h1>
-        <button onClick={() => router.push('/admin/appointments/new')} style={btnPrimary}>
-          + Nuovo
-        </button>
+    <div className="p-4 md:p-6 pb-24 space-y-6">
+      <header className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-slate-900 font-[Poppins]">Dashboard Admin</h1>
+        <div className="flex gap-2">
+          <button onClick={() => load(selectedMonth, selectedDate)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">↻</button>
+          <button onClick={() => router.push('/admin/appointments/new')} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all">
+            + Nuovo
+          </button>
+        </div>
+      </header>
+
+      {/* Date Navigation Strip */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
+          <button
+            onClick={() => { setFilterMode('month'); setIsAgendaView(false); }}
+            className={`flex-shrink-0 px-5 py-3 rounded-2xl text-sm font-bold transition-all border ${filterMode === 'month' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
+          >
+            📅 Mensile
+          </button>
+          <div className="w-px h-8 bg-slate-200 flex-shrink-0" />
+          {dateStrip.map((d) => {
+            const isActive = filterMode === 'day' && isSameDay(d, selectedDate);
+            const isToday = isSameDay(d, new Date());
+            return (
+              <button
+                key={d.toISOString()}
+                onClick={() => { setFilterMode('day'); setSelectedDate(d); }}
+                className={`flex-shrink-0 flex flex-col items-center justify-center min-w-[64px] h-[72px] rounded-2xl border transition-all ${isActive ? 'bg-gradient-to-br from-yellow-300 to-orange-400 border-orange-400 text-slate-900 shadow-lg scale-105 z-10' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-300'}`}
+              >
+                <span className={`text-[10px] uppercase font-bold ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>{d.toLocaleDateString('it-IT', { weekday: 'short' })}</span>
+                <span className="text-xl font-black">{d.getDate()}</span>
+                {isToday && !isActive && <div className="w-1 h-1 bg-orange-400 rounded-full mt-0.5" />}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex justify-between items-center gap-3">
+          <div className="flex bg-slate-100 p-1 rounded-xl flex-1 max-w-[240px]">
+            <button onClick={() => setIsAgendaView(false)} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${!isAgendaView ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>☰ Lista</button>
+            <button onClick={() => setIsAgendaView(true)} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${isAgendaView ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>🕘 Agenda</button>
+          </div>
+          <div className="flex gap-2">
+            {filterMode === 'month' && (
+              <input type="month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="px-3 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white outline-none focus:ring-2 ring-amber-400 transition-all" />
+            )}
+            <button onClick={exportCSV} className="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 shadow-sm">📥</button>
+          </div>
+        </div>
       </div>
 
-      {/* Filters */}
-      <div style={filterRow}>
-        <input
-          type="month"
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-          style={{ ...inputStyle, maxWidth: '180px' }}
-        />
-        <button onClick={exportCSV} style={btnSecondary}>📥 CSV</button>
-        <button onClick={exportPDF} style={btnSecondary}>📄 PDF</button>
-        <button onClick={() => load(selectedMonth)} style={{ ...btnSecondary, padding: '8px 12px' }}>↻</button>
-      </div>
-
-
-      {/* KPI Cards - Commissioni evidenziato (guadagno studio) */}
       <KpiGrid>
         <KpiCard value={filteredRows.length} label="Appuntamenti" icon="📅" />
         <KpiCard value={eur(totaleLordo)} label="Lordo" icon="💰" />
@@ -254,155 +249,141 @@ export default function AdminAppointmentsPage() {
         <KpiCard value={eur(totaleNetto)} label="Netto Op." icon="👤" />
       </KpiGrid>
 
-      {loading && <LoadingState />}
-
-      {err && (
-        <div style={{ background: '#fee2e2', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '12px', padding: '16px', color: '#991b1b', marginBottom: '16px' }}>
-          ⚠️ {err}
-        </div>
-      )}
-
-      {/* Summary per Operatore */}
-      {!loading && summary.length > 0 && (
-        <div>
-          <h2 style={sectionTitle}>📊 Riepilogo per operatore</h2>
-          <div style={tableContainer}>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Operatore</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>App.</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Lordo</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Comm.</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Netto</th>
-                </tr>
-              </thead>
-              <tbody>
-                {summary.map((s) => (
-                  <tr key={s.operator_id}>
-                    <td style={{ ...tdStyle, fontWeight: 500 }}>{s.operator_name}</td>
-                    <td style={{ ...tdStyle, textAlign: 'right' }}>{s.num_appointments}</td>
-                    <td style={{ ...tdStyle, textAlign: 'right' }}>{eur(s.total_gross_cents)}</td>
-                    <td style={{ ...tdStyle, textAlign: 'right', color: '#10b981' }}>{eur(s.total_commission_cents)}</td>
-                    <td style={{ ...tdStyle, textAlign: 'right' }}>{eur(s.total_net_cents)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Appointments Table */}
-      {!loading && !err && (
-        <div>
-
-          <h2 style={sectionTitle}>📋 Elenco appuntamenti</h2>
-
-          {/* Search Bar */}
-          <div style={{ marginBottom: '16px' }}>
-            <input
-              type="text"
-              placeholder="🔍 Cerca operatore, servizio, paziente..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setVisibleCount(20); // Reset scroll on search
-              }}
-              style={{ ...inputStyle, width: '100%' }}
-            />
-          </div>
-
-          {/* Mobile List (Visible < md) */}
-          <div className="md:hidden space-y-4">
-            {filteredRows.length === 0 ? (
-              <div className="text-center p-8 text-slate-400 bg-white rounded-xl border border-slate-200">
-                {searchTerm ? 'Nessun risultato trovato.' : 'Nessun appuntamento nel mese selezionato.'}
-              </div>
-            ) : (
-              visibleRows.map((r) => (
-                <div key={r.id} className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-                  <div className="flex justify-between items-start mb-3">
-                    <div>
-                      <div className="font-semibold text-slate-800">
-                        {new Date(r.starts_at).toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                      <div className="text-sm text-slate-500 mt-1">{r.operators?.display_name ?? '-'}</div>
-                    </div>
-                    <Badge status={r.status} />
+      {loading ? <LoadingState /> : (
+        <div className="space-y-6">
+          {!isAgendaView ? (
+            /* LIST VIEW (Table + Monthly Summary) */
+            <div className="space-y-8">
+              {filterMode === 'month' && summary.length > 0 && (
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                  <div className="p-4 bg-slate-50 border-bottom border-slate-200">
+                    <h3 className="text-sm font-bold text-slate-900 uppercase">Riepilogo Mensile Operatori</h3>
                   </div>
-
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
-                    <div className="text-sm font-medium text-slate-700">
-                      {eur(r.gross_amount_cents ?? 0)}
-                    </div>
-                    <button
-                      onClick={() => router.push(`/admin/appointments/${r.id}`)}
-                      className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors flex items-center gap-2"
-                    >
-                      👁️ Dettagli
-                    </button>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-50/50">
+                          <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Operatore</th>
+                          <th className="px-4 py-3 text-right font-bold text-slate-400 uppercase text-[10px]">App.</th>
+                          <th className="px-4 py-3 text-right font-bold text-slate-400 uppercase text-[10px]">Lordo</th>
+                          <th className="px-4 py-3 text-right font-bold text-slate-400 uppercase text-[10px]">Studio</th>
+                          <th className="px-4 py-3 text-right font-bold text-slate-400 uppercase text-[10px]">Netto</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {summary.map(s => (
+                          <tr key={s.operator_id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-4 py-3 font-bold text-slate-900">{s.operator_name}</td>
+                            <td className="px-4 py-3 text-right text-slate-600">{s.num_appointments}</td>
+                            <td className="px-4 py-3 text-right text-slate-900 font-medium">{eur(s.total_gross_cents)}</td>
+                            <td className="px-4 py-3 text-right text-emerald-600 font-bold">{eur(s.total_commission_cents)}</td>
+                            <td className="px-4 py-3 text-right text-slate-900 font-bold">{eur(s.total_net_cents)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+              )}
 
-          {/* Desktop Table (Visible >= md) */}
-          <div className="hidden md:block overflow-x-auto bg-white border border-slate-200 rounded-xl">
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  <th style={thStyle}>Data/Ora</th>
-                  <th style={thStyle}>Operatore</th>
-                  <th style={thStyle}>Servizio</th>
-                  <th style={thStyle}>Paziente</th>
-                  <th style={thStyle}>Stato</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Lordo</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }}>Comm.</th>
-                  <th style={{ ...thStyle, textAlign: 'center' }}>Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ ...tdStyle, textAlign: 'center', padding: '32px', color: '#94a3b8' }}>
-                      {searchTerm ? 'Nessun risultato trovato.' : 'Nessun appuntamento nel mese selezionato.'}
-                    </td>
-                  </tr>
-                ) : (
-                  visibleRows.map((r) => (
-                    <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => router.push(`/admin/appointments/${r.id}`)} className="hover:bg-slate-50 transition-colors">
-                      <td style={tdStyle}>{new Date(r.starts_at).toLocaleString('it-IT')}</td>
-                      <td style={tdStyle}>{r.operators?.display_name ?? '-'}</td>
-                      <td style={tdStyle}>{r.services?.name ?? '-'}</td>
-                      <td style={tdStyle}>{r.patients?.full_name ?? '-'}</td>
-                      <td style={tdStyle}><Badge status={r.status} /></td>
-                      <td style={{ ...tdStyle, textAlign: 'right' }}>{eur(r.gross_amount_cents ?? 0)}</td>
-                      <td style={{ ...tdStyle, textAlign: 'right' }}>{eur(r.commission_amount_cents ?? 0)}</td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        <span style={{ fontSize: '1rem' }}>✏️</span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="p-4 border-b border-slate-200">
+                  <input
+                    type="text"
+                    placeholder="🔍 Filtra per operatore, paziente o servizio..."
+                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 ring-amber-400 outline-none transition-all"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50/50">
+                        <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Data</th>
+                        <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Operatore</th>
+                        <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Paziente</th>
+                        <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Stato</th>
+                        <th className="px-4 py-3 text-right font-bold text-slate-400 uppercase text-[10px]">Lordo</th>
+                        <th className="px-4 py-3 text-right font-bold text-slate-400 uppercase text-[10px]">Comm.</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {visibleRows.map(r => (
+                        <tr key={r.id} onClick={() => router.push(`/admin/appointments/${r.id}`)} className="hover:bg-slate-50 transition-colors cursor-pointer capitalize">
+                          <td className="px-4 py-3 text-slate-900">
+                            <span className="font-bold">{new Date(r.starts_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}</span>
+                            <span className="block text-[10px] text-slate-400">{new Date(r.starts_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-600 font-medium">{r.operators?.display_name || '-'}</td>
+                          <td className="px-4 py-3">
+                            <span className="text-slate-900 font-bold block">{r.patients?.full_name || '-'}</span>
+                            <span className="text-[10px] text-slate-400 block">{r.services?.name || '-'}</span>
+                          </td>
+                          <td className="px-4 py-3"><Badge status={r.status} /></td>
+                          <td className="px-4 py-3 text-right font-bold text-slate-900">{eur(r.gross_amount_cents)}</td>
+                          <td className="px-4 py-3 text-right font-medium text-emerald-600">{eur(r.commission_amount_cents)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* AGENDA VIEW (Multi-Operator Columns) */
+            <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xl flex flex-col h-[600px]">
+              <div className="flex border-b border-slate-100 bg-slate-50/50">
+                <div className="w-14 flex-shrink-0" /> {/* Hour labels spacer */}
+                {activeOperators.map(op => (
+                  <div key={op.id} className="flex-1 py-4 text-center border-l border-slate-100">
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest truncate px-2">{op.name}</h4>
+                  </div>
+                ))}
+                {activeOperators.length === 0 && <div className="flex-1 py-10 text-center text-slate-400 italic">Nessun appuntamento per questo giorno.</div>}
+              </div>
 
-          {/* Load More Button */}
-          {visibleCount < filteredRows.length && (
-            <button
-              onClick={() => setVisibleCount(prev => prev + 20)}
-              style={btnLoadMore}
-            >
-              🔽 Carica altri {filteredRows.length - visibleCount > 20 ? 20 : filteredRows.length - visibleCount} appuntamenti
-              <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 400, marginTop: '4px' }}>
-                (Visualizzati {visibleCount} di {filteredRows.length})
-              </span>
-            </button>
+              <div className="flex-1 overflow-y-auto relative no-scrollbar">
+                <div className="relative" style={{ height: `${timeSlots.length * hourHeight}px` }}>
+                  {/* Hour background lines */}
+                  {timeSlots.map(hour => (
+                    <div key={hour} className="absolute w-full border-t border-slate-100 flex items-center" style={{ top: `${(hour - 8) * hourHeight}px`, height: '1px' }}>
+                      <span className="absolute left-2 text-[10px] font-bold text-slate-400">{hour}:00</span>
+                    </div>
+                  ))}
+
+                  {/* Multi-column Grid */}
+                  <div className="flex h-full ml-14">
+                    {activeOperators.map(op => (
+                      <div key={op.id} className="flex-1 relative border-l border-slate-100/50">
+                        {filteredRows.filter(r => r.operator_id === op.id).map(r => {
+                          const date = new Date(r.starts_at);
+                          const pos = (date.getHours() - 8) * hourHeight + (date.getMinutes() / 60) * hourHeight;
+                          const height = (r.duration / 60) * hourHeight;
+
+                          let statusColor = 'bg-amber-50 border-amber-400 text-amber-900';
+                          if (r.status === 'completed') statusColor = 'bg-emerald-50 border-emerald-500 text-emerald-900';
+                          if (r.status === 'cancelled') statusColor = 'bg-slate-50 border-slate-200 text-slate-400 opacity-60';
+
+                          return (
+                            <div
+                              key={r.id}
+                              onClick={() => router.push(`/admin/appointments/${r.id}`)}
+                              className={`absolute inset-x-1 rounded-lg border-l-4 p-2 shadow-sm transition-all hover:scale-[1.02] cursor-pointer overflow-hidden group ${statusColor}`}
+                              style={{ top: `${pos}px`, height: `${height - 2}px` }}
+                            >
+                              <div className="text-[10px] font-black truncate">{r.patients?.full_name}</div>
+                              {height > 30 && <div className="text-[8px] opacity-70 truncate uppercase font-bold">{r.services?.name}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
-
         </div>
       )}
     </div>

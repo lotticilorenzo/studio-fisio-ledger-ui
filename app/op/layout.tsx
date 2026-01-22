@@ -17,7 +17,7 @@ function OpNav() {
     ];
 
     return (
-        <nav className="bg-white border-b border-slate-200 sticky top-[65px] z-10 shadow-sm">
+        <nav className="bg-white border-b border-slate-200 sticky top-[65px] z-20 shadow-sm">
             <div className="grid grid-cols-3 p-2 px-4 max-w-md mx-auto w-full gap-2">
                 {links.map((link) => {
                     const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
