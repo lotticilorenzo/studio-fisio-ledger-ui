@@ -3,9 +3,9 @@ import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
 
 // Setup VAPID keys
-const VAPID_SUBJECT = 'mailto:lottici.lorenzo04@gmail.com';
-const VAPID_PUBLIC_KEY = 'BGMb1Dyx6qJxSw3-zQsRH3LxdjIsLCdvDzreNBgtmbAb1sqvzGOQJU-kMnJ-YeuMpf_KsRp5-5t_1JDjtuwJGQg';
-const VAPID_PRIVATE_KEY = '4SwVEDRIuUf0okytZ7DLpP7STQug1kdXA5aWyF0F9LQ';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:lottici.lorenzo04@gmail.com';
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '';
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || '';
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
