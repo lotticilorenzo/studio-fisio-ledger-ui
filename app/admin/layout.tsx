@@ -12,6 +12,7 @@ function AdminNav() {
 
   const links = [
     { href: '/admin/appointments', label: 'Appuntamenti', icon: '📅' },
+    { href: '/admin/patients', label: 'Pazienti', icon: '👤' },
     { href: '/admin/operators', label: 'Operatori', icon: '👥' },
     { href: '/admin/services', label: 'Servizi', icon: '🏷️' },
     { href: '/admin/stats', label: 'Statistiche', icon: '📊' },
@@ -19,7 +20,7 @@ function AdminNav() {
 
   return (
     <nav className="bg-white border-b border-slate-200 sticky top-[65px] z-20 shadow-sm">
-      <div className="grid grid-cols-4 md:flex md:items-center md:gap-2 p-2 md:px-4 max-w-5xl md:mx-auto w-full">
+      <div className="grid grid-cols-5 md:flex md:items-center md:gap-2 p-2 md:px-4 max-w-5xl md:mx-auto w-full">
         {links.map((link) => {
           const isActive = pathname === link.href || pathname?.startsWith(link.href + '/');
           return (

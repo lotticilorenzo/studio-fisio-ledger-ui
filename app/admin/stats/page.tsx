@@ -33,6 +33,22 @@ export default function AdminStatsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Filter state
+    const [showMyOnly, setShowMyOnly] = useState(false);
+    const [myOperatorId, setMyOperatorId] = useState<string | null>(null);
+
+    // Fetch current admin's operator ID
+    useEffect(() => {
+        async function getMyOpId() {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data } = await supabase.from('operators').select('id').eq('user_id', user.id).single();
+                if (data) setMyOperatorId(data.id);
+            }
+        }
+        getMyOpId();
+    }, []);
+
     useEffect(() => {
         async function loadStats() {
             setLoading(true);
@@ -42,16 +58,21 @@ export default function AdminStatsPage() {
             const ninetyDaysAgo = new Date();
             ninetyDaysAgo.setDate(today.getDate() - 90);
 
+            // Determine if we should filter
+            const filterOpId = showMyOnly ? myOperatorId : null;
+
             try {
                 const [trendRes, mixRes, patientsRes] = await Promise.all([
-                    supabase.rpc('admin_get_revenue_trend'),
+                    supabase.rpc('admin_get_revenue_trend', { p_operator_id: filterOpId }),
                     supabase.rpc('admin_get_service_mix', {
                         p_start_date: ninetyDaysAgo.toISOString(),
-                        p_end_date: today.toISOString()
+                        p_end_date: today.toISOString(),
+                        p_operator_id: filterOpId
                     }),
                     supabase.rpc('admin_get_patient_stats', {
                         p_start_date: ninetyDaysAgo.toISOString(),
-                        p_end_date: today.toISOString()
+                        p_end_date: today.toISOString(),
+                        p_operator_id: filterOpId
                     })
                 ]);
 
@@ -84,7 +105,7 @@ export default function AdminStatsPage() {
         }
 
         loadStats();
-    }, []);
+    }, [showMyOnly, myOperatorId]);
 
     const currentMonth = useMemo(() => trend[trend.length - 1], [trend]);
     const returningPatients = useMemo(() => (patients?.total_patients || 0) - (patients?.new_patients || 0), [patients]);
@@ -96,9 +117,22 @@ export default function AdminStatsPage() {
 
     return (
         <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-8 pb-32 mt-6">
-            <header>
-                <h1 className="text-2xl font-black text-slate-900 font-[Poppins]">Analisi Studio</h1>
-                <p className="text-sm text-slate-500 font-medium">Performance aggiornate in tempo reale</p>
+            <header className="flex justify-between items-start">
+                <div>
+                    <h1 className="text-2xl font-black text-slate-900 font-[Poppins]">Analisi Studio</h1>
+                    <p className="text-sm text-slate-500 font-medium">Performance aggiornate in tempo reale</p>
+                </div>
+                {myOperatorId && (
+                    <button
+                        onClick={() => setShowMyOnly(!showMyOnly)}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${showMyOnly
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md ring-2 ring-indigo-200'
+                            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'
+                            }`}
+                    >
+                        👤 Solo Miei
+                    </button>
+                )}
             </header>
 
             {error && (

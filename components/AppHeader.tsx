@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { HeaderNotificationBell } from "./HeaderNotificationBell";
 
 type AppHeaderProps = {
     subtitle?: string;
@@ -85,6 +86,8 @@ export function AppHeader({
                 </div>
                 {showLogout && (
                     <div className="flex items-center gap-1">
+                        <HeaderNotificationBell />
+                        <div className="w-px h-6 bg-slate-200 mx-1" /> {/* Divider */}
                         <button
                             onClick={() => router.push('/profile')}
                             style={{ ...logoutBtnStyle, color: '#64748b' }}

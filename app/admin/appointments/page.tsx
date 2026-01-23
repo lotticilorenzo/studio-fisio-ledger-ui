@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabaseClient';
 import { humanError } from '@/lib/humanError';
 import { Badge } from '@/components/ui/Badge';
-import { KpiCard, KpiGrid } from '@/components/ui/KpiCard';
+
 import { LoadingState } from '@/components/ui/Loading';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -64,10 +64,24 @@ export default function AdminAppointmentsPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [filterMode, setFilterMode] = useState<'month' | 'day'>('month');
   const [isAgendaView, setIsAgendaView] = useState(false);
+  const [showMyOnly, setShowMyOnly] = useState(false);
+  const [myOperatorId, setMyOperatorId] = useState<string | null>(null);
 
   // Pagination & Search state
   const [searchTerm, setSearchTerm] = useState('');
   const [visibleCount, setVisibleCount] = useState(20);
+
+  // Fetch current admin's operator ID
+  useEffect(() => {
+    async function getMyOpId() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase.from('operators').select('id').eq('user_id', user.id).single();
+        if (data) setMyOperatorId(data.id);
+      }
+    }
+    getMyOpId();
+  }, []);
 
   // Generate 14 days for the strip
   const dateStrip = useMemo(() => {
@@ -139,12 +153,15 @@ export default function AdminAppointmentsPage() {
   const activeOperators = useMemo(() => {
     const map = new Map();
     rows.forEach(r => {
+      // Filter for agenda columns if "Show My Only" is active
+      if (showMyOnly && myOperatorId && r.operator_id !== myOperatorId) return;
+
       if (r.operator_id && !map.has(r.operator_id)) {
         map.set(r.operator_id, r.operators?.display_name || 'Operatore');
       }
     });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [rows]);
+  }, [rows, showMyOnly, myOperatorId]);
 
   function exportCSV() {
     if (rows.length === 0) return;
@@ -172,19 +189,24 @@ export default function AdminAppointmentsPage() {
   }
 
   const filteredRows = useMemo(() => {
-    if (!searchTerm.trim()) return rows;
+    let result = rows;
+
+    // Filter by "My Only"
+    if (showMyOnly && myOperatorId) {
+      result = result.filter(r => r.operator_id === myOperatorId);
+    }
+
+    if (!searchTerm.trim()) return result;
     const lower = searchTerm.toLowerCase();
-    return rows.filter(r =>
+    return result.filter(r =>
       (r.operators?.display_name ?? '').toLowerCase().includes(lower) ||
       (r.services?.name ?? '').toLowerCase().includes(lower) ||
       (r.patients?.full_name ?? '').toLowerCase().includes(lower)
     );
-  }, [rows, searchTerm]);
+  }, [rows, searchTerm, showMyOnly, myOperatorId]);
 
   const visibleRows = useMemo(() => filteredRows.slice(0, visibleCount), [filteredRows, visibleCount]);
-  const totaleLordo = useMemo(() => filteredRows.reduce((sum, r) => sum + (r.gross_amount_cents ?? 0), 0), [filteredRows]);
-  const totaleComm = useMemo(() => filteredRows.reduce((sum, r) => sum + (r.commission_amount_cents ?? 0), 0), [filteredRows]);
-  const totaleNetto = totaleLordo - totaleComm;
+
 
   const hourHeight = 44;
   const timeSlots = Array.from({ length: 13 }, (_, i) => 8 + i);
@@ -194,8 +216,19 @@ export default function AdminAppointmentsPage() {
       <header className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-slate-900 font-[Poppins]">Dashboard Admin</h1>
         <div className="flex gap-2">
-          <button onClick={() => load(selectedMonth, selectedDate)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">↻</button>
-          <button onClick={() => router.push('/admin/appointments/new')} className="bg-slate-900 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-md active:scale-95 transition-all">
+          {myOperatorId && (
+            <button
+              onClick={() => setShowMyOnly(!showMyOnly)}
+              className={`px-4 py-2 rounded-full text-xs font-bold border transition-all duration-200 flex items-center gap-2 ${showMyOnly
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200 ring-2 ring-indigo-100'
+                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                }`}
+            >
+              <span className="text-base">👤</span> Solo Miei
+            </button>
+          )}
+          <button onClick={() => load(selectedMonth, selectedDate)} className="p-2 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm">↻</button>
+          <button onClick={() => router.push('/admin/appointments/new')} className="bg-gradient-to-r from-slate-900 to-slate-800 text-white px-5 py-2 rounded-xl text-xs font-bold shadow-lg shadow-slate-200 active:scale-95 transition-all hover:to-slate-700">
             + Nuovo
           </button>
         </div>
@@ -206,7 +239,7 @@ export default function AdminAppointmentsPage() {
         <div className="flex items-center gap-3 overflow-x-auto pb-2 no-scrollbar scroll-smooth">
           <button
             onClick={() => { setFilterMode('month'); setIsAgendaView(false); }}
-            className={`flex-shrink-0 px-5 py-3 rounded-2xl text-sm font-bold transition-all border ${filterMode === 'month' ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
+            className={`flex-shrink-0 px-5 py-3 rounded-2xl text-xs font-bold transition-all border shadow-sm ${filterMode === 'month' ? 'bg-slate-900 text-white border-slate-900 ring-4 ring-slate-100' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
           >
             📅 Mensile
           </button>
@@ -218,11 +251,11 @@ export default function AdminAppointmentsPage() {
               <button
                 key={d.toISOString()}
                 onClick={() => { setFilterMode('day'); setSelectedDate(d); }}
-                className={`flex-shrink-0 flex flex-col items-center justify-center min-w-[64px] h-[72px] rounded-2xl border transition-all ${isActive ? 'bg-gradient-to-br from-yellow-300 to-orange-400 border-orange-400 text-slate-900 shadow-lg scale-105 z-10' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-300'}`}
+                className={`flex-shrink-0 flex flex-col items-center justify-center min-w-[64px] h-[72px] rounded-2xl border transition-all duration-200 ${isActive ? 'bg-gradient-to-br from-amber-300 to-orange-400 border-orange-400 text-white shadow-lg shadow-orange-200 scale-105 z-10' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-300 hover:bg-slate-50'}`}
               >
-                <span className={`text-[10px] uppercase font-bold ${isActive ? 'text-slate-900' : 'text-slate-400'}`}>{d.toLocaleDateString('it-IT', { weekday: 'short' })}</span>
-                <span className="text-xl font-black">{d.getDate()}</span>
-                {isToday && !isActive && <div className="w-1 h-1 bg-orange-400 rounded-full mt-0.5" />}
+                <span className={`text-[10px] uppercase font-bold ${isActive ? 'text-white/90' : 'text-slate-400'}`}>{d.toLocaleDateString('it-IT', { weekday: 'short' })}</span>
+                <span className={`text-xl font-black ${isActive ? 'text-white' : 'text-slate-700'}`}>{d.getDate()}</span>
+                {isToday && !isActive && <div className="w-1.5 h-1.5 bg-orange-400 rounded-full mt-1" />}
               </button>
             );
           })}
@@ -242,12 +275,7 @@ export default function AdminAppointmentsPage() {
         </div>
       </div>
 
-      <KpiGrid>
-        <KpiCard value={filteredRows.length} label="Appuntamenti" icon="📅" />
-        <KpiCard value={eur(totaleLordo)} label="Lordo" icon="💰" />
-        <KpiCard value={eur(totaleComm)} label="Commissioni" highlight icon="💼" />
-        <KpiCard value={eur(totaleNetto)} label="Netto Op." icon="👤" />
-      </KpiGrid>
+
 
       {loading ? <LoadingState /> : (
         <div className="space-y-6">
@@ -290,8 +318,8 @@ export default function AdminAppointmentsPage() {
                 <div className="p-4 border-b border-slate-200">
                   <input
                     type="text"
-                    placeholder="🔍 Filtra per operatore, paziente o servizio..."
-                    className="w-full bg-slate-50 border border-slate-100 rounded-xl px-4 py-3 text-sm focus:ring-2 ring-amber-400 outline-none transition-all"
+                    placeholder="🔍 Cerca operatore, paziente..."
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all shadow-sm placeholder:text-slate-400"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -310,39 +338,50 @@ export default function AdminAppointmentsPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {visibleRows.map(r => (
-                        <tr key={r.id} onClick={() => router.push(`/admin/appointments/${r.id}`)} className="hover:bg-slate-50 transition-colors cursor-pointer capitalize">
+                        <tr key={r.id} onClick={() => router.push(`/admin/appointments/${r.id}`)} className="group hover:bg-slate-50 transition-colors cursor-pointer capitalize border-b border-slate-50 last:border-0 relative">
                           {/* Data */}
-                          <td className="px-2 md:px-4 py-3 text-slate-900 whitespace-nowrap">
-                            <span className="font-bold block">{new Date(r.starts_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}</span>
-                            <span className="block text-[10px] text-slate-400">{new Date(r.starts_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
+                          <td className="px-4 py-4 text-slate-900 whitespace-nowrap">
+                            <div className="flex flex-col">
+                              <span className="font-bold text-slate-700 text-sm">{new Date(r.starts_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}</span>
+                              <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md w-fit mt-1">{new Date(r.starts_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
+                            </div>
                           </td>
 
                           {/* Operatore (Desktop only) */}
-                          <td className="hidden md:table-cell px-4 py-3 text-slate-600 font-medium">{r.operators?.display_name || '-'}</td>
+                          <td className="hidden md:table-cell px-4 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">
+                                {r.operators?.display_name?.charAt(0) || '?'}
+                              </div>
+                              <span className="text-slate-600 font-medium text-sm">{r.operators?.display_name || '-'}</span>
+                            </div>
+                          </td>
 
                           {/* Paziente + Service + Operator (Mobile) */}
-                          <td className="px-2 md:px-4 py-3">
-                            <span className="text-slate-900 font-bold block truncate max-w-[140px] md:max-w-none">{r.patients?.full_name || '-'}</span>
-                            <span className="text-[10px] text-slate-400 block truncate max-w-[140px] md:max-w-none">{r.services?.name || '-'}</span>
-                            {/* Mobile Operator Name */}
-                            <span className="md:hidden text-[9px] text-indigo-500 font-bold uppercase mt-1 block truncate max-w-[140px]">
-                              {r.operators?.display_name}
-                            </span>
+                          <td className="px-4 py-4">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-slate-900 font-bold text-sm block truncate max-w-[160px] md:max-w-none">{r.patients?.full_name || '-'}</span>
+                              <span className="text-xs text-slate-500 font-medium block truncate max-w-[160px] md:max-w-none">{r.services?.name || '-'}</span>
+                              {/* Mobile Operator Name */}
+                              <span className="md:hidden text-[10px] text-indigo-500 font-bold uppercase mt-1 flex items-center gap-1">
+                                👤 {r.operators?.display_name}
+                              </span>
+                            </div>
                           </td>
 
                           {/* Stato (Desktop only) */}
-                          <td className="hidden sm:table-cell px-4 py-3"><Badge status={r.status} /></td>
+                          <td className="hidden sm:table-cell px-4 py-4"><Badge status={r.status} /></td>
 
                           {/* Lordo + Mobile Status */}
-                          <td className="px-2 md:px-4 py-3 text-right sticky right-0 bg-white/50 group-hover:bg-slate-50">
-                            <div className="font-bold text-slate-900">{eur(r.gross_amount_cents)}</div>
-                            <div className="sm:hidden mt-1 flex justify-end">
-                              <Badge status={r.status} className="scale-75 origin-right text-[10px]" />
+                          <td className="px-4 py-4 text-right">
+                            <div className="font-bold text-slate-900 text-sm">{eur(r.gross_amount_cents)}</div>
+                            <div className="sm:hidden mt-2 flex justify-end transform scale-90 origin-right">
+                              <Badge status={r.status} />
                             </div>
                           </td>
 
                           {/* Commissione (Desktop only) */}
-                          <td className="hidden md:table-cell px-4 py-3 text-right font-medium text-emerald-600">{eur(r.commission_amount_cents)}</td>
+                          <td className="hidden md:table-cell px-4 py-4 text-right font-bold text-emerald-600 text-sm">{eur(r.commission_amount_cents)}</td>
                         </tr>
                       ))}
                     </tbody>

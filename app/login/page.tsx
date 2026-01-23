@@ -85,7 +85,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="app-shell flex items-center justify-center p-4" style={{ minHeight: '100vh' }}>
+    <main className="min-h-screen flex items-center justify-center p-4 bg-slate-50">
       <div className="w-full container">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -94,8 +94,8 @@ export default function LoginPage() {
             alt="Studio FISYO"
             width={80}
             height={80}
-            className="mx-auto mb-4 rounded-2xl"
-            style={{ boxShadow: 'var(--shadow-lg)' }}
+            className="mx-auto mb-4 rounded-2xl shadow-xl transition-transform hover:scale-105 duration-300"
+            style={{ boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' }}
             priority
           />
           <h1 className="page-title">Studio FISYO</h1>
@@ -103,7 +103,8 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="card card-body">
+        <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 max-w-md mx-auto relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#f4f119] to-[#ff9900]"></div>
 
           {view === 'login' ? (
             <>
@@ -112,7 +113,7 @@ export default function LoginPage() {
                 <div className="form-group">
                   <label className="form-label">Email</label>
                   <input
-                    className="form-input"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-[#f4f119] focus:border-[#f4f119] transition-all duration-200 outline-none shadow-sm placeholder:text-slate-400"
                     placeholder="nome@esempio.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -125,7 +126,7 @@ export default function LoginPage() {
                 <div className="form-group">
                   <label className="form-label">Password</label>
                   <input
-                    className="form-input"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-[#f4f119] focus:border-[#f4f119] transition-all duration-200 outline-none shadow-sm placeholder:text-slate-400"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -145,7 +146,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="btn btn-primary btn-full btn-lg"
+                  className="w-full py-3.5 px-4 bg-gradient-to-r from-[#f4f119] to-[#ff9900] hover:from-[#eecb10] hover:to-[#e68a00] text-slate-900 font-bold rounded-xl shadow-lg shadow-orange-100 transform active:scale-[0.98] transition-all duration-200"
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
@@ -164,8 +165,8 @@ export default function LoginPage() {
                       setView('forgot_password');
                       setError(null);
                     }}
-                    className="text-sm text-muted hover:text-primary transition-colors"
-                    style={{ textDecoration: 'underline' }}
+                    className="text-sm text-slate-400 hover:text-[#ff9900] transition-colors font-medium"
+                    style={{ textDecoration: 'none' }}
                   >
                     Password dimenticata?
                   </button>
@@ -188,7 +189,7 @@ export default function LoginPage() {
                       setView('login');
                       setResetSuccess(false);
                     }}
-                    className="btn btn-secondary btn-full"
+                    className="w-full py-3 px-4 bg-white text-slate-500 font-medium rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-slate-700 transition-all duration-200"
                   >
                     Torna al Login
                   </button>
@@ -198,7 +199,7 @@ export default function LoginPage() {
                   <div className="form-group">
                     <label className="form-label">Email Account</label>
                     <input
-                      className="form-input"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-[#f4f119] focus:border-[#f4f119] transition-all duration-200 outline-none shadow-sm placeholder:text-slate-400"
                       placeholder="nome@esempio.com"
                       value={resetEmail}
                       onChange={(e) => setResetEmail(e.target.value)}
@@ -218,7 +219,7 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={loading}
-                    className="btn btn-primary btn-full btn-lg mb-3"
+                    className="w-full py-3.5 px-4 bg-gradient-to-r from-[#f4f119] to-[#ff9900] hover:from-[#eecb10] hover:to-[#e68a00] text-slate-900 font-bold rounded-xl shadow-lg shadow-orange-100 transform active:scale-[0.98] transition-all duration-200 mb-3"
                   >
                     {loading ? <Spinner size="sm" /> : "Invia Link Reset"}
                   </button>
@@ -229,7 +230,7 @@ export default function LoginPage() {
                       setView('login');
                       setError(null);
                     }}
-                    className="btn btn-secondary btn-full"
+                    className="w-full py-3 px-4 bg-white text-slate-500 font-medium rounded-xl border border-slate-200 hover:bg-slate-50 hover:text-slate-700 transition-all duration-200"
                   >
                     Annulla
                   </button>
