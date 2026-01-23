@@ -300,29 +300,49 @@ export default function AdminAppointmentsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-slate-50/50">
-                        <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Data</th>
-                        <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Operatore</th>
-                        <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Paziente</th>
-                        <th className="px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Stato</th>
-                        <th className="px-4 py-3 text-right font-bold text-slate-400 uppercase text-[10px]">Lordo</th>
-                        <th className="px-4 py-3 text-right font-bold text-slate-400 uppercase text-[10px]">Comm.</th>
+                        <th className="px-2 md:px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Data</th>
+                        <th className="hidden md:table-cell px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Operatore</th>
+                        <th className="px-2 md:px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Paziente</th>
+                        <th className="hidden sm:table-cell px-4 py-3 text-left font-bold text-slate-400 uppercase text-[10px]">Stato</th>
+                        <th className="px-2 md:px-4 py-3 text-right font-bold text-slate-400 uppercase text-[10px]">Lordo</th>
+                        <th className="hidden md:table-cell px-4 py-3 text-right font-bold text-slate-400 uppercase text-[10px]">Comm.</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {visibleRows.map(r => (
                         <tr key={r.id} onClick={() => router.push(`/admin/appointments/${r.id}`)} className="hover:bg-slate-50 transition-colors cursor-pointer capitalize">
-                          <td className="px-4 py-3 text-slate-900">
-                            <span className="font-bold">{new Date(r.starts_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}</span>
+                          {/* Data */}
+                          <td className="px-2 md:px-4 py-3 text-slate-900 whitespace-nowrap">
+                            <span className="font-bold block">{new Date(r.starts_at).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' })}</span>
                             <span className="block text-[10px] text-slate-400">{new Date(r.starts_at).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
                           </td>
-                          <td className="px-4 py-3 text-slate-600 font-medium">{r.operators?.display_name || '-'}</td>
-                          <td className="px-4 py-3">
-                            <span className="text-slate-900 font-bold block">{r.patients?.full_name || '-'}</span>
-                            <span className="text-[10px] text-slate-400 block">{r.services?.name || '-'}</span>
+
+                          {/* Operatore (Desktop only) */}
+                          <td className="hidden md:table-cell px-4 py-3 text-slate-600 font-medium">{r.operators?.display_name || '-'}</td>
+
+                          {/* Paziente + Service + Operator (Mobile) */}
+                          <td className="px-2 md:px-4 py-3">
+                            <span className="text-slate-900 font-bold block truncate max-w-[140px] md:max-w-none">{r.patients?.full_name || '-'}</span>
+                            <span className="text-[10px] text-slate-400 block truncate max-w-[140px] md:max-w-none">{r.services?.name || '-'}</span>
+                            {/* Mobile Operator Name */}
+                            <span className="md:hidden text-[9px] text-indigo-500 font-bold uppercase mt-1 block truncate max-w-[140px]">
+                              {r.operators?.display_name}
+                            </span>
                           </td>
-                          <td className="px-4 py-3"><Badge status={r.status} /></td>
-                          <td className="px-4 py-3 text-right font-bold text-slate-900">{eur(r.gross_amount_cents)}</td>
-                          <td className="px-4 py-3 text-right font-medium text-emerald-600">{eur(r.commission_amount_cents)}</td>
+
+                          {/* Stato (Desktop only) */}
+                          <td className="hidden sm:table-cell px-4 py-3"><Badge status={r.status} /></td>
+
+                          {/* Lordo + Mobile Status */}
+                          <td className="px-2 md:px-4 py-3 text-right sticky right-0 bg-white/50 group-hover:bg-slate-50">
+                            <div className="font-bold text-slate-900">{eur(r.gross_amount_cents)}</div>
+                            <div className="sm:hidden mt-1 flex justify-end">
+                              <Badge status={r.status} className="scale-75 origin-right text-[10px]" />
+                            </div>
+                          </td>
+
+                          {/* Commissione (Desktop only) */}
+                          <td className="hidden md:table-cell px-4 py-3 text-right font-medium text-emerald-600">{eur(r.commission_amount_cents)}</td>
                         </tr>
                       ))}
                     </tbody>

@@ -6,6 +6,7 @@ import { humanError } from '@/lib/humanError';
 import { LoadingState } from '@/components/ui/Loading';
 import { eur } from '@/lib/format';
 import { PushSubscriptionManager } from '@/components/PushSubscriptionManager';
+import { KpiCard, KpiGrid } from '@/components/ui/KpiCard';
 
 interface EarningsTrend {
     month: string;
@@ -65,10 +66,22 @@ export default function OperatorStatsPage() {
 
                 if (trendRes.error || mixRes.error || patientsRes.error || weeklyRes.error) {
                     const msg = trendRes.error?.message || mixRes.error?.message || patientsRes.error?.message || weeklyRes.error?.message;
-                    setError(humanError(msg || 'Errore neli caricamento'));
+                    setError(humanError(msg || 'Errore nel caricamento'));
                 } else {
-                    setTrend(trendRes.data || []);
-                    setMix(mixRes.data || []);
+                    // Normalize data types
+                    setTrend((trendRes.data || []).map((t: any) => ({
+                        ...t,
+                        earnings_cents: Number(t.earnings_cents || 0),
+                        appointment_count: Number(t.appointment_count || 0)
+                    })));
+
+                    setMix((mixRes.data || []).map((m: any) => ({
+                        ...m,
+                        count: Number(m.count || 0),
+                        earnings_cents: Number(m.earnings_cents || 0),
+                        percentage_count: Number(m.percentage_count || 0)
+                    })));
+
                     setPatients(patientsRes.data?.[0] || null);
                     setWeekly(weeklyRes.data?.[0] || null);
                 }
@@ -109,126 +122,151 @@ export default function OperatorStatsPage() {
                 </div>
             )}
 
-            {/* Main Earnings Card (High contrast white) */}
-            <div className="bg-white p-6 rounded-3xl shadow-md border border-slate-100 relative overflow-hidden ring-1 ring-slate-900/5">
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-yellow-200 to-orange-300 opacity-20 rounded-full -mr-12 -mt-12"></div>
+            {/* KPI Grid using shared component */}
+            <KpiGrid>
+                <KpiCard
+                    value={eur(currentMonthData?.earnings_cents || 0)}
+                    label={`Fatturato ${currentMonthData?.month || 'Corrente'}`}
+                    highlight
+                    icon="💰"
+                />
+                <KpiCard
+                    value={currentMonthData?.appointment_count || 0}
+                    label="Appuntamenti"
+                    icon="📅"
+                />
+                <KpiCard
+                    value={eur(avgPerSession)}
+                    label="Media/Seduta"
+                    icon="📊"
+                />
+                <KpiCard
+                    value={weekly?.total_appointments || 0}
+                    label="Ultimi 7gg"
+                    icon="⚡"
+                />
+            </KpiGrid>
 
-                <div className="flex justify-between items-start mb-4">
-                    <div>
-                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Bilancio {currentMonthData?.month || 'Mese'}</p>
-                        <h2 className="text-4xl font-extrabold text-slate-900">{eur(currentMonthData?.earnings_cents || 0)}</h2>
-                    </div>
-                    <div className="bg-amber-50 text-amber-600 p-2 rounded-xl border border-amber-100 shadow-sm">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
+            {/* Earnings Trend - Premium Design */}
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden relative">
+                <div className="flex justify-between items-center mb-8 relative z-10">
+                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                        <span className="flex h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                        Andamento 12 Mesi
+                    </h3>
                 </div>
 
-                <div className="flex gap-4 pt-4 border-t border-slate-50">
-                    <div className="flex-1">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Media / Seduta</p>
-                        <p className="text-sm font-bold text-slate-700">{eur(avgPerSession)}</p>
-                    </div>
-                    <div className="flex-1 text-right">
-                        <p className="text-[10px] text-slate-400 font-bold uppercase mb-0.5">Appuntamenti</p>
-                        <p className="text-sm font-bold text-slate-700">{currentMonthData?.appointment_count || 0}</p>
-                    </div>
-                </div>
-            </div>
+                <div className="h-56 flex items-end gap-2 w-full relative z-10">
+                    {trend.map((t, idx) => {
+                        const isLast = idx === trend.length - 1;
+                        const hasEarnings = t.earnings_cents > 0;
+                        const heightPercent = hasEarnings
+                            ? Math.max((t.earnings_cents / maxEarnings) * 100, 8)
+                            : (t.appointment_count > 0 ? 15 : 4);
 
-            {/* Summary Grid */}
-            <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="text-blue-500 bg-blue-50 p-1.5 rounded-lg">⚡</span>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">Ultimi 7 gg</p>
-                    </div>
-                    <p className="text-xl font-bold text-slate-900">{eur(weekly?.total_earnings_cents || 0)}</p>
-                    <p className="text-[10px] text-slate-400 mt-1 font-medium">{weekly?.total_appointments || 0} appuntamenti</p>
-                </div>
-
-                <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm transition-all hover:shadow-md">
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="text-emerald-500 bg-emerald-50 p-1.5 rounded-lg">🔁</span>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">Ritorno</p>
-                    </div>
-                    <p className="text-xl font-bold text-slate-900">{returningPatients}</p>
-                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Pazienti storici</p>
-                </div>
-            </div>
-
-            {/* Earnings Trend */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                <div className="flex justify-between items-center mb-8">
-                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-tight">📈 Andamento Guadagni</h3>
-                    <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-full ring-1 ring-slate-100">12 MESI</span>
-                </div>
-
-                <div className="h-44 flex items-end gap-2 w-full">
-                    {trend.map((t) => {
-                        const heightPercent = Math.max((t.earnings_cents / maxEarnings) * 90, 4);
                         const date = new Date(t.year_month + '-01');
-                        const monthName = date.toLocaleString('it-IT', { month: 'short' });
+                        const monthName = date.toLocaleString('it-IT', { month: 'short' }).toUpperCase();
+                        const val = t.earnings_cents;
 
                         return (
                             <div key={t.year_month} className="flex-1 h-full flex flex-col justify-end items-center group relative">
-                                <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[10px] py-1 px-2 rounded-lg pointer-events-none whitespace-nowrap z-10 shadow-lg">
-                                    {eur(t.earnings_cents)}
+                                {/* Tooltip */}
+                                <div className="absolute bottom-full mb-3 opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-200 bg-slate-900/95 backdrop-blur-sm text-white py-3 px-4 rounded-2xl pointer-events-none whitespace-nowrap z-50 shadow-2xl border border-white/10 text-center">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{monthName} {date.getFullYear()}</p>
+                                    <p className="text-lg font-black text-indigo-300">{eur(val)}</p>
+                                    <div className="w-full h-px bg-white/10 my-2"></div>
+                                    <p className="text-[10px] text-slate-300 font-bold uppercase">{t.appointment_count} appuntamenti</p>
+                                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 transform rotate-45"></div>
                                 </div>
-                                <div
-                                    className="w-full bg-slate-100 rounded-full relative hover:bg-slate-200 transition-all cursor-pointer overflow-hidden p-0.5"
-                                    style={{ height: `${heightPercent}%` }}
-                                >
+
+                                {/* Main Bar */}
+                                <div className="w-full h-full flex items-end justify-center cursor-pointer px-[2px]">
                                     <div
-                                        className="w-full h-full bg-gradient-to-t from-indigo-500 to-indigo-400 rounded-full shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]"
-                                    ></div>
+                                        className={`w-full rounded-t-xl transition-all duration-700 ease-out relative ${!hasEarnings && t.appointment_count > 0 ? 'bg-slate-100' : ''}`}
+                                        style={{
+                                            height: `${heightPercent}%`,
+                                            transitionDelay: `${idx * 30}ms`
+                                        }}
+                                    >
+                                        <div
+                                            className={`w-full h-full rounded-t-xl overflow-hidden shadow-sm ${hasEarnings
+                                                ? 'bg-indigo-500 shadow-[0_4px_20px_rgba(99,102,241,0.4)]'
+                                                : (t.appointment_count > 0 ? 'bg-slate-100 border-2 border-dashed border-slate-300' : 'bg-slate-50')
+                                                }`}
+                                        >
+                                            {/* Lighting effect */}
+                                            {hasEarnings && (
+                                                <div className="absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/30 to-transparent opacity-60"></div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                                <span className="text-[9px] text-slate-400 mt-2 font-bold uppercase">{monthName}</span>
+                                <span className={`text-[9px] mt-3 font-black uppercase tracking-wider transition-colors duration-200 ${isLast ? 'text-indigo-600' : 'text-slate-300 group-hover:text-slate-500'
+                                    }`}>
+                                    {monthName.charAt(0)}
+                                </span>
                             </div>
                         );
                     })}
                 </div>
             </div>
 
-            {/* Top Services */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-sm font-bold text-slate-800 uppercase tracking-tight">🍩 Top Servizi</h3>
-                    <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-full ring-1 ring-slate-100">ULTIMI 90 GG</span>
+            {/* Top Services - Premium Design */}
+            <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-xl overflow-hidden">
+                <div className="flex justify-between items-center mb-8">
+                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest">🏆 Top Servizi</h3>
+                    <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-3 py-1 rounded-full ring-1 ring-slate-100 uppercase">90 GG</span>
                 </div>
 
-                <div className="space-y-5">
-                    {mix.map((item, idx) => (
-                        <div key={idx}>
-                            <div className="flex justify-between items-center text-xs mb-2">
-                                <span className="font-bold text-slate-700">{item.service_name}</span>
-                                <span className="text-slate-500 font-mono bg-slate-50 px-2 py-0.5 rounded border border-slate-100">{item.count} appt</span>
+                <div className="space-y-6">
+                    {mix.map((item, idx) => {
+                        const gradients = [
+                            'from-indigo-500 to-purple-500',
+                            'from-purple-500 to-pink-500',
+                            'from-pink-500 to-rose-500',
+                            'from-orange-400 to-amber-500',
+                            'from-teal-400 to-emerald-500'
+                        ];
+                        const grad = gradients[idx % gradients.length];
+
+                        return (
+                            <div key={idx} className="group cursor-default">
+                                <div className="flex justify-between items-end mb-2">
+                                    <div>
+                                        <p className="text-xs font-black text-slate-700 uppercase tracking-tight mb-1">{item.service_name}</p>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded text-xs">{item.count}</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm font-black text-slate-900 font-mono tracking-tight">{eur(item.earnings_cents)}</p>
+                                </div>
+
+                                <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
+                                    <div
+                                        className={`bg-gradient-to-r ${grad} h-full rounded-full transition-all duration-1000 ease-out group-hover:brightness-110 shadow-lg`}
+                                        style={{ width: `${item.percentage_count}%` }}
+                                    >
+                                        <div className="w-full h-full bg-gradient-to-b from-white/25 to-transparent"></div>
+                                    </div>
+                                </div>
                             </div>
-                            <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden shadow-inner">
-                                <div
-                                    className="bg-gradient-to-r from-yellow-300 via-orange-400 to-orange-500 h-full rounded-full transition-all duration-700 ease-out"
-                                    style={{ width: `${item.percentage_count}%` }}
-                                ></div>
-                            </div>
-                            <div className="flex justify-between mt-1.5 text-[10px]">
-                                <span className="text-slate-400 font-medium">{item.percentage_count}% del volume</span>
-                                <span className="text-slate-900 font-bold">{eur(item.earnings_cents)}</span>
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
+
                     {mix.length === 0 && (
-                        <div className="py-12 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                            <p className="text-slate-400 text-xs italic">Nessun dato disponibile nel periodo.</p>
+                        <div className="py-12 flex flex-col items-center justify-center text-center">
+                            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                <span className="text-3xl grayscale opacity-50">📊</span>
+                            </div>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Nessun dato disponibile</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            <footer className="text-center pt-2">
-                <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
-                    Le statistiche includono appuntamenti "Completati" e "Programmati".<br />
-                    I dati sono aggiornati in tempo reale.
+            <footer className="text-center pt-8 pb-4">
+                <p className="text-[10px] text-slate-300 font-black uppercase tracking-[0.2em]">
+                    Studio FISYO • Dashboard
                 </p>
             </footer>
         </div>

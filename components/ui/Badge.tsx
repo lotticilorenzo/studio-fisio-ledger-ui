@@ -3,6 +3,7 @@
 interface BadgeProps {
     status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | string;
     children?: React.ReactNode;
+    className?: string;
 }
 
 const statusLabels: Record<string, string> = {
@@ -22,23 +23,26 @@ const statusColors: Record<string, { bg: string; color: string }> = {
 /**
  * Status badge component
  */
-export function Badge({ status, children }: BadgeProps) {
+export function Badge({ status, children, className }: BadgeProps) {
     const label = children || statusLabels[status] || status;
     const colors = statusColors[status] || { bg: '#f1f5f9', color: '#475569' };
 
     return (
-        <span style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '4px 8px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            borderRadius: '9999px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.025em',
-            background: colors.bg,
-            color: colors.color,
-        }}>
+        <span
+            className={className}
+            style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                padding: '4px 8px',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                borderRadius: '9999px',
+                textTransform: 'uppercase',
+                letterSpacing: '0.025em',
+                background: colors.bg,
+                color: colors.color,
+            }}
+        >
             {label}
         </span>
     );

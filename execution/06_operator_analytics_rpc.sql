@@ -25,7 +25,7 @@ AS $$
   SELECT
     to_char(m.month_start, 'Mon') as month,
     to_char(m.month_start, 'YYYY-MM') as year_month,
-    COALESCE(SUM(a.commission_amount_cents), 0) as earnings_cents,
+    COALESCE(SUM(a.gross_amount_cents), 0) as earnings_cents,
     COUNT(a.id) as appointment_count
   FROM months m
   LEFT JOIN appointments a ON date_trunc('month', a.starts_at) = m.month_start
@@ -60,7 +60,7 @@ AS $$
   SELECT
     s.name as service_name,
     COUNT(a.id) as count,
-    COALESCE(SUM(a.commission_amount_cents), 0) as earnings_cents,
+    COALESCE(SUM(a.gross_amount_cents), 0) as earnings_cents,
     ROUND((COUNT(a.id)::numeric / NULLIF((SELECT total_count FROM total), 0) * 100), 1) as percentage_count
   FROM services s
   JOIN appointments a ON a.service_id = s.id
@@ -121,7 +121,7 @@ AS $$
     SELECT id FROM operators WHERE user_id = auth.uid() LIMIT 1
   )
   SELECT
-    COALESCE(SUM(commission_amount_cents), 0) as total_earnings_cents,
+    COALESCE(SUM(gross_amount_cents), 0) as total_earnings_cents,
     COUNT(*) as total_appointments
   FROM appointments
   WHERE starts_at >= (CURRENT_DATE - INTERVAL '6 days')

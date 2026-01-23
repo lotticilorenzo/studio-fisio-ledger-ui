@@ -59,9 +59,11 @@ export async function GET() {
                         }
                     };
 
+                    const minutesUntil = Math.round((new Date(appt.starts_at).getTime() - Date.now()) / 60000);
+
                     const payload = JSON.stringify({
                         title: 'Studio FISYO',
-                        body: `Paziente tra 15 min: ${(appt.p as any).full_name} (${(appt.s as any).name})`,
+                        body: `Paziente tra ${minutesUntil} min: ${(appt.p as any).full_name} (${(appt.s as any).name})`,
                         url: `/op/appointments`
                     });
 
