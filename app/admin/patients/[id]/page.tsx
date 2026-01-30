@@ -150,12 +150,26 @@ export default function AdminPatientDetailPage() {
                                 </div>
                                 <div className="text-right">
                                     <p className="font-bold text-slate-900">{eur(item.h_gross_amount_cents)}</p>
-                                    <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${item.h_status === 'completed' ? 'bg-emerald-50 text-emerald-600' :
-                                            item.h_status === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
-                                        }`}>
-                                        {item.h_status === 'completed' ? 'Completato' :
-                                            item.h_status === 'cancelled' ? 'Cancellato' : 'Programmato'}
-                                    </span>
+                                    {/* Logic to treat past scheduled as completed */}
+                                    {/* Logic to treat past scheduled as completed */}
+                                    {(() => {
+                                        const now = new Date();
+                                        const startRes = new Date(item.h_starts_at);
+                                        const isPast = startRes < now;
+                                        const effectiveStatus = item.h_status === 'scheduled' && isPast ? 'completed' : item.h_status;
+
+                                        // DEBUG: uncomment the next line to see values in UI
+                                        // return <span className="text-[10px] text-red-500 block">{item.h_status} | {isPast ? 'PAST' : 'FUT'} | {startRes.toISOString()} | {now.toISOString()}</span>;
+
+                                        return (
+                                            <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${effectiveStatus === 'completed' ? 'bg-emerald-50 text-emerald-600' :
+                                                    effectiveStatus === 'cancelled' ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'
+                                                }`}>
+                                                {effectiveStatus === 'completed' ? 'Completato' :
+                                                    effectiveStatus === 'cancelled' ? 'Cancellato' : 'Programmato'}
+                                            </span>
+                                        );
+                                    })()}
                                 </div>
                             </div>
 

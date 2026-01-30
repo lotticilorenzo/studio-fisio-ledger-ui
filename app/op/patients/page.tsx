@@ -117,9 +117,17 @@ export default function OperatorPatientsPage() {
                                             </p>
                                             <p className="text-[10px] text-slate-400 uppercase font-bold">{h.h_service_name}</p>
                                         </div>
-                                        <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${h.h_status === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-                                            {h.h_status === 'completed' ? 'Completato' : 'In programma'}
-                                        </div>
+                                        {(() => {
+                                            const now = new Date();
+                                            const startRes = new Date(h.h_starts_at);
+                                            const isPast = startRes < now;
+                                            const effectiveStatus = h.h_status === 'scheduled' && isPast ? 'completed' : h.h_status;
+                                            return (
+                                                <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${effectiveStatus === 'completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                    {effectiveStatus === 'completed' ? 'Completato' : 'In programma'}
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 min-h-[60px]">
                                         <p className="text-sm text-slate-600 italic whitespace-pre-wrap leading-relaxed">
