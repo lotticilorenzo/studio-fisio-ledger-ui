@@ -1,0 +1,106 @@
+{
+    "name": "Studio Fisio - Happy Birthday SAFE",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "triggerAtHour": 9
+                        }
+                    ]
+                }
+            },
+            "name": "Every Day at 9am",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ],
+            "id": "schedule-trigger"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM view_n8n_birthdays;",
+                "additionalFields": {}
+            },
+            "name": "Get Birthdays",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ],
+            "id": "get-birthdays"
+        },
+        {
+            "parameters": {
+                "batchSize": 1,
+                "options": {}
+            },
+            "name": "SplitInBatches",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 1,
+            "position": [
+                680,
+                300
+            ],
+            "id": "split-batches"
+        },
+        {
+            "parameters": {
+                "senderEmail": "info@studiofisio.it",
+                "toEmail": "={{$json[\"email\"]}}",
+                "subject": "Tanti Auguri di Buon Compleanno! 🎂",
+                "contentVal": "htmlContent",
+                "htmlContent": "=<html><body><p>Tanti Auguri {{$json[\"full_name\"]}}! 🎉</p><p>Tutto lo staff di Studio Fisio ti augura una giornata splendida.</p><p>A presto!</p></body></html>"
+            },
+            "name": "Brevo Email Birthday",
+            "type": "n8n-nodes-base.brevo",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ],
+            "id": "brevo-email"
+        }
+    ],
+    "connections": {
+        "Every Day at 9am": {
+            "main": [
+                [
+                    {
+                        "node": "Get Birthdays",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Birthdays": {
+            "main": [
+                [
+                    {
+                        "node": "SplitInBatches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "SplitInBatches": {
+            "main": [
+                [
+                    {
+                        "node": "Brevo Email Birthday",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

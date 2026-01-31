@@ -1,0 +1,133 @@
+{
+    "name": "Studio Fisio - Reactivation (Recupero Dormienti) SAFE",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "weeks",
+                            "triggerAtDayOfWeek": 1,
+                            "triggerAtHour": 10
+                        }
+                    ]
+                }
+            },
+            "name": "Every Monday at 10am",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ],
+            "id": "schedule-trigger"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM view_n8n_reactivation;",
+                "additionalFields": {}
+            },
+            "name": "Get Dormant Patients",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ],
+            "id": "get-dormants"
+        },
+        {
+            "parameters": {
+                "batchSize": 1,
+                "options": {}
+            },
+            "name": "SplitInBatches",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 1,
+            "position": [
+                680,
+                300
+            ],
+            "id": "split-batches"
+        },
+        {
+            "parameters": {
+                "email": "={{$json[\"email\"]}}",
+                "templateId": 5,
+                "params": {
+                    "NAME": "={{$json[\"full_name\"]}}"
+                }
+            },
+            "name": "Brevo Email Reactivation",
+            "type": "n8n-nodes-base.brevo",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ],
+            "id": "brevo-email"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "=UPDATE patients SET last_reactivation_sent = NOW() WHERE id = '{{$node[\"SplitInBatches\"].json[\"id\"]}}';",
+                "additionalFields": {}
+            },
+            "name": "Mark Contacted (Anti-Spam)",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                300
+            ],
+            "id": "mark-sent"
+        }
+    ],
+    "connections": {
+        "Every Monday at 10am": {
+            "main": [
+                [
+                    {
+                        "node": "Get Dormant Patients",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Dormant Patients": {
+            "main": [
+                [
+                    {
+                        "node": "SplitInBatches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "SplitInBatches": {
+            "main": [
+                [
+                    {
+                        "node": "Brevo Email Reactivation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Brevo Email Reactivation": {
+            "main": [
+                [
+                    {
+                        "node": "Mark Contacted (Anti-Spam)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

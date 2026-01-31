@@ -1,0 +1,168 @@
+{
+    "name": "Studio Fisio - Monthly Report (Admin) FIXED",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "months",
+                            "triggerAtDayOfMonth": 1,
+                            "triggerAtHour": 8
+                        }
+                    ]
+                }
+            },
+            "name": "1st of Month at 8am",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ],
+            "id": "schedule-trigger"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM view_n8n_monthly_report;",
+                "additionalFields": {}
+            },
+            "name": "Get Aggregates",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                460,
+                200
+            ],
+            "id": "get-aggregates"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM view_n8n_monthly_report_details;",
+                "additionalFields": {}
+            },
+            "name": "Get Details (CSV)",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                460,
+                400
+            ],
+            "id": "get-details"
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "name": "Create CSV",
+            "type": "n8n-nodes-base.spreadsheetFile",
+            "typeVersion": 1,
+            "position": [
+                680,
+                400
+            ],
+            "id": "create-csv",
+            "operation": "toFile",
+            "fileFormat": "csv",
+            "binaryPropertyName": "data"
+        },
+        {
+            "parameters": {
+                "batchSize": 1,
+                "options": {}
+            },
+            "name": "Merge Data",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ],
+            "id": "merge-data",
+            "mode": "wait"
+        },
+        {
+            "parameters": {
+                "email": "lottici.lorenzo04@gmail.com",
+                "templateId": 7,
+                "params": {
+                    "MONTH": "={{$json[\"report_month\"]}}",
+                    "SUMMARY": "=Incasso: €{{$json[\"total_revenue_eur\"]}} | Appuntamenti: {{$json[\"total_appointments\"]}}"
+                },
+                "attachments": "data"
+            },
+            "name": "Brevo Report Sender",
+            "type": "n8n-nodes-base.brevo",
+            "typeVersion": 1,
+            "position": [
+                1120,
+                300
+            ],
+            "id": "brevo-sender"
+        }
+    ],
+    "connections": {
+        "1st of Month at 8am": {
+            "main": [
+                [
+                    {
+                        "node": "Get Aggregates",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Get Details (CSV)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Aggregates": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Details (CSV)": {
+            "main": [
+                [
+                    {
+                        "node": "Create CSV",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create CSV": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Data",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Merge Data": {
+            "main": [
+                [
+                    {
+                        "node": "Brevo Report Sender",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

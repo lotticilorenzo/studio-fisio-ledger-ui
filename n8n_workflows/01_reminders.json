@@ -1,0 +1,108 @@
+{
+    "name": "Studio Fisio - Reminders (Brevo Template)",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "minutes",
+                            "minutesInterval": 15
+                        }
+                    ]
+                }
+            },
+            "name": "Every 15m",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ],
+            "id": "schedule-trigger"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT *, '24h' as reminder_type FROM view_n8n_reminders_24h UNION ALL SELECT *, '5h' as reminder_type FROM view_n8n_reminders_5h;",
+                "additionalFields": {}
+            },
+            "name": "Get Reminders Postgres",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ],
+            "id": "get-reminders"
+        },
+        {
+            "parameters": {
+                "batchSize": 1,
+                "options": {}
+            },
+            "name": "SplitInBatches",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 1,
+            "position": [
+                680,
+                300
+            ],
+            "id": "split-batches"
+        },
+        {
+            "parameters": {
+                "email": "={{$json[\"patient_email\"]}}",
+                "templateId": "={{ $json[\"reminder_type\"] == '24h' ? 3 : 4 }}",
+                "params": {
+                    "NAME": "={{$json[\"patient_name\"]}}",
+                    "TIME": "={{$json[\"appointment_time\"]}}",
+                    "DATE": "={{$json[\"appointment_date\"]}}"
+                }
+            },
+            "name": "Brevo Template Send",
+            "type": "n8n-nodes-base.brevo",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ],
+            "id": "brevo-template"
+        }
+    ],
+    "connections": {
+        "Every 15m": {
+            "main": [
+                [
+                    {
+                        "node": "Get Reminders Postgres",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Reminders Postgres": {
+            "main": [
+                [
+                    {
+                        "node": "SplitInBatches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "SplitInBatches": {
+            "main": [
+                [
+                    {
+                        "node": "Brevo Template Send",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

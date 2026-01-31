@@ -1,0 +1,106 @@
+{
+    "name": "Studio Fisio - Review Request (Brevo Template)",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "triggerAtHour": 10
+                        }
+                    ]
+                }
+            },
+            "name": "Every Day at 10am",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ],
+            "id": "schedule-trigger"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM view_n8n_reviews;",
+                "additionalFields": {}
+            },
+            "name": "Get Review Candidates",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ],
+            "id": "get-reviews"
+        },
+        {
+            "parameters": {
+                "batchSize": 1,
+                "options": {}
+            },
+            "name": "SplitInBatches",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 1,
+            "position": [
+                680,
+                300
+            ],
+            "id": "split-batches"
+        },
+        {
+            "parameters": {
+                "email": "={{$json[\"patient_email\"]}}",
+                "templateId": 6,
+                "params": {
+                    "NAME": "={{$json[\"patient_name\"]}}"
+                }
+            },
+            "name": "Brevo Template Review",
+            "type": "n8n-nodes-base.brevo",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ],
+            "id": "brevo-review"
+        }
+    ],
+    "connections": {
+        "Every Day at 10am": {
+            "main": [
+                [
+                    {
+                        "node": "Get Review Candidates",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Review Candidates": {
+            "main": [
+                [
+                    {
+                        "node": "SplitInBatches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "SplitInBatches": {
+            "main": [
+                [
+                    {
+                        "node": "Brevo Template Review",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

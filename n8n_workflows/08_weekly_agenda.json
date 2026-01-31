@@ -1,0 +1,108 @@
+{
+    "name": "Studio Fisio - Operator Weekly Agenda (Brevo)",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "weeks",
+                            "triggerAtDayOfWeek": 0,
+                            "triggerAtHour": 19
+                        }
+                    ]
+                }
+            },
+            "name": "Every Sunday at 7pm",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                240,
+                300
+            ],
+            "id": "schedule-trigger"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT * FROM view_n8n_weekly_agenda;",
+                "additionalFields": {}
+            },
+            "name": "Get Agendas",
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 1,
+            "position": [
+                460,
+                300
+            ],
+            "id": "get-agendas"
+        },
+        {
+            "parameters": {
+                "batchSize": 1,
+                "options": {}
+            },
+            "name": "SplitInBatches",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 1,
+            "position": [
+                680,
+                300
+            ],
+            "id": "split-batches"
+        },
+        {
+            "parameters": {
+                "operation": "send",
+                "email": "={{$json[\"operator_email\"]}}",
+                "senderEmail": "lottici.lorenzo04@gmail.com",
+                "subject": "La tua agenda per la prossima settimana 📅",
+                "htmlContent": "=<html><body><h2>Ciao {{$json[\"operator_name\"]}},</h2><p>Ecco i tuoi appuntamenti per la prossima settimana:</p><pre style=\"background:#f4f4f4; padding:15px; border-radius:5px;\">{{$json[\"agenda_text\"]}}</pre><p>Buon lavoro!</p></body></html>",
+                "senderName": "Studio Fisio Ledger"
+            },
+            "name": "Brevo Agenda Sender",
+            "type": "n8n-nodes-base.brevo",
+            "typeVersion": 1,
+            "position": [
+                900,
+                300
+            ],
+            "id": "brevo-sender"
+        }
+    ],
+    "connections": {
+        "Every Sunday at 7pm": {
+            "main": [
+                [
+                    {
+                        "node": "Get Agendas",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Get Agendas": {
+            "main": [
+                [
+                    {
+                        "node": "SplitInBatches",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "SplitInBatches": {
+            "main": [
+                [
+                    {
+                        "node": "Brevo Agenda Sender",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}
