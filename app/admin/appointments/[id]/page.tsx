@@ -24,6 +24,8 @@ export default function AdminEditAppointmentPage() {
     const [operatorId, setOperatorId] = useState<string>('');
     const [serviceId, setServiceId] = useState<string>('');
     const [patientName, setPatientName] = useState<string>('');
+    const [patientEmail, setPatientEmail] = useState<string>('');
+    const [patientPhone, setPatientPhone] = useState<string>('');
     const [startsAt, setStartsAt] = useState<string>('');
     const [status, setStatus] = useState<'scheduled' | 'completed' | 'cancelled' | 'no_show'>('scheduled');
     const [grossEuro, setGrossEuro] = useState<string>('0');
@@ -35,10 +37,22 @@ export default function AdminEditAppointmentPage() {
         return Number.isFinite(n) ? Math.round(n * 100) : 0;
     }, [grossEuro]);
 
+    const [operatorServices, setOperatorServices] = useState<{ operator_id: string, service_id: string }[]>([]);
+
     const selectedOperator = useMemo(
         () => operators.find((o) => o.id === operatorId) ?? null,
         [operators, operatorId]
     );
+
+    const availableServices = useMemo(() => {
+        if (!operatorId) return [];
+        const allowedServiceIds = operatorServices
+            .filter(os => os.operator_id === operatorId)
+            .map(os => os.service_id);
+
+        if (allowedServiceIds.length === 0) return [];
+        return services.filter(s => allowedServiceIds.includes(s.id));
+    }, [services, operatorServices, operatorId]);
 
     const commissionPreview = useMemo(() => {
         const eur = Number(grossEuro.replace(',', '.'));
@@ -64,9 +78,10 @@ export default function AdminEditAppointmentPage() {
             setErr(null);
 
             // Carica operatori e servizi
-            const [opRes, srvRes] = await Promise.all([
+            const [opRes, srvRes, opSrvRes] = await Promise.all([
                 supabase.from('operators').select('id,display_name,commission_rate').order('display_name'),
                 supabase.from('services').select('id,name').order('name'),
+                supabase.from('operator_services').select('operator_id, service_id'),
             ]);
 
             if (opRes.error) {
@@ -82,6 +97,7 @@ export default function AdminEditAppointmentPage() {
 
             setOperators((opRes.data ?? []) as OperatorRow[]);
             setServices((srvRes.data ?? []) as ServiceRow[]);
+            setOperatorServices((opSrvRes.data ?? []) as { operator_id: string, service_id: string }[]);
 
             // Carica appuntamento
             const { data, error } = await supabase.rpc('admin_get_appointment_by_id', { p_id: id });
@@ -101,6 +117,8 @@ export default function AdminEditAppointmentPage() {
             setOperatorId(found.operator_id ?? '');
             setServiceId(found.service_id ?? '');
             setPatientName(found.patient_name ?? '');
+            setPatientEmail(found.patient_email ?? '');
+            setPatientPhone(found.patient_phone ?? '');
             setStartsAt(toDatetimeLocal(found.starts_at));
             setStatus(found.status ?? 'scheduled');
             setGrossEuro(((found.gross_amount_cents ?? 0) / 100).toFixed(2));
@@ -117,6 +135,11 @@ export default function AdminEditAppointmentPage() {
 
         if (!operatorId) {
             setErr('Seleziona un operatore.');
+            setSaving(false);
+            return;
+        }
+        if (!patientName.trim()) {
+            setErr("Inserisci il nome del paziente.");
             setSaving(false);
             return;
         }
@@ -139,6 +162,8 @@ export default function AdminEditAppointmentPage() {
             p_gross_amount_cents: grossCents,
             p_notes: notes || null,
             p_marketing_consent: marketingConsent,
+            p_patient_email: patientEmail.trim() || null,
+            p_patient_phone: patientPhone.trim() || null,
         });
 
         if (error) {
@@ -200,7 +225,7 @@ export default function AdminEditAppointmentPage() {
                         onChange={(e) => setServiceId(e.target.value)}
                     >
                         <option value="">(opzionale)</option>
-                        {services.map((s) => (
+                        {availableServices.map((s) => (
                             <option key={s.id} value={s.id}>
                                 {s.name}
                             </option>
@@ -209,7 +234,7 @@ export default function AdminEditAppointmentPage() {
                 </div>
 
                 <div className="form-group">
-                    <label className="form-label">Paziente</label>
+                    <label className="form-label">Paziente <span className="text-red-500">*</span></label>
                     <input
                         className="form-input"
                         type="text"
@@ -217,6 +242,29 @@ export default function AdminEditAppointmentPage() {
                         value={patientName}
                         onChange={(e) => setPatientName(e.target.value)}
                     />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="form-group">
+                        <label className="form-label">Email Paziente (opzionale)</label>
+                        <input
+                            className="form-input"
+                            type="email"
+                            placeholder="email@esempio.com"
+                            value={patientEmail}
+                            onChange={(e) => setPatientEmail(e.target.value)}
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label">Telefono Paziente (opzionale)</label>
+                        <input
+                            className="form-input"
+                            type="tel"
+                            placeholder="+39 333 1234567"
+                            value={patientPhone}
+                            onChange={(e) => setPatientPhone(e.target.value)}
+                        />
+                    </div>
                 </div>
 
                 <div className="form-group flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">

@@ -11,16 +11,20 @@ export default function NewAppointmentPage() {
   const router = useRouter();
   const [operators, setOperators] = useState<OperatorRow[]>([]);
   const [services, setServices] = useState<ServiceRow[]>([]);
+  const [operatorServices, setOperatorServices] = useState<{ operator_id: string, service_id: string }[]>([]);
+
+  // Restored State Variables
   const [error, setError] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [minDate, setMinDate] = useState("");
 
-  // form state
   const [operatorId, setOperatorId] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [startsAt, setStartsAt] = useState(""); // datetime-local
   const [status, setStatus] = useState<"scheduled" | "completed" | "cancelled" | "no_show">("scheduled");
   const [patientName, setPatientName] = useState("");
+  const [patientEmail, setPatientEmail] = useState("");
+  const [patientPhone, setPatientPhone] = useState("");
   const [grossEur, setGrossEur] = useState("0.00");
   const [notes, setNotes] = useState("");
   const [marketingConsent, setMarketingConsent] = useState(false);
@@ -39,11 +43,17 @@ export default function NewAppointmentPage() {
         .select("id,name,default_price_cents")
         .order("name", { ascending: true });
 
+      const { data: opSrvData, error: opSrvErr } = await supabase
+        .from("operator_services")
+        .select("operator_id, service_id");
+
       if (opErr) return setError(opErr.message);
       if (srvErr) return setError(srvErr.message);
+      if (opSrvErr) console.error("Error fetching operator services:", opSrvErr); // Non-blocking
 
       setOperators((opData ?? []) as OperatorRow[]);
       setServices((srvData ?? []) as ServiceRow[]);
+      setOperatorServices((opSrvData ?? []) as { operator_id: string, service_id: string }[]);
 
       const now = new Date();
       const pad = (n: number) => n.toString().padStart(2, '0');
@@ -51,6 +61,25 @@ export default function NewAppointmentPage() {
       setMinDate(localIso);
     })();
   }, []);
+
+  // Filter services based on selected operator
+  const availableServices = useMemo(() => {
+    if (!operatorId) return [];
+
+    // Safety check: Operator ID must be valid
+    if (!operators.find(o => o.id === operatorId)) return [];
+
+    const allowedServiceIds = operatorServices
+      .filter(os => os.operator_id === operatorId)
+      .map(os => os.service_id);
+
+    // If operator has no specific services assigned (legacy or catch-all), maybe show all?
+    // Requirement says: "se mette lei stessa può leggere solamente i servizi [assegnati]".
+    // If table is empty, this returns empty. This enforces strict assignment.
+    if (allowedServiceIds.length === 0) return [];
+
+    return services.filter(s => allowedServiceIds.includes(s.id));
+  }, [services, operatorServices, operatorId, operators]);
 
   // autopopola prezzo quando scegli servizio -> Spostato in onChange
   // useEffect removed to avoid cascading render
@@ -76,6 +105,7 @@ export default function NewAppointmentPage() {
     setOk(null);
 
     if (!operatorId) return setError("Seleziona un operatore.");
+    if (!patientName.trim()) return setError("Inserisci il nome del paziente.");
     if (!startsAt) return setError("Seleziona data e ora.");
     if (!grossEur) return setError("Inserisci importo.");
 
@@ -98,6 +128,8 @@ export default function NewAppointmentPage() {
       p_gross_amount_cents: gross_amount_cents,
       p_notes: notes || null,
       p_marketing_consent: marketingConsent,
+      p_patient_email: patientEmail.trim() || null,
+      p_patient_phone: patientPhone.trim() || null,
     });
 
     if (error) return setError(error.message);
@@ -156,7 +188,7 @@ export default function NewAppointmentPage() {
             }}
           >
             <option value="">(opzionale)</option>
-            {services.map((s) => (
+            {availableServices.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
               </option>
@@ -164,8 +196,9 @@ export default function NewAppointmentPage() {
           </select>
         </div>
 
+
         <div className="form-group">
-          <label className="form-label">Paziente</label>
+          <label className="form-label">Paziente <span className="text-red-500">*</span></label>
           <input
             className="form-input"
             type="text"
@@ -173,6 +206,29 @@ export default function NewAppointmentPage() {
             value={patientName}
             onChange={(e) => setPatientName(e.target.value)}
           />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="form-group">
+            <label className="form-label">Email Paziente (opzionale)</label>
+            <input
+              className="form-input"
+              type="email"
+              placeholder="email@esempio.com"
+              value={patientEmail}
+              onChange={(e) => setPatientEmail(e.target.value)}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Telefono Paziente (opzionale)</label>
+            <input
+              className="form-input"
+              type="tel"
+              placeholder="+39 333 1234567"
+              value={patientPhone}
+              onChange={(e) => setPatientPhone(e.target.value)}
+            />
+          </div>
         </div>
 
         <div className="form-group flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">

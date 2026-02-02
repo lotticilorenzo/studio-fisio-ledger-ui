@@ -7,6 +7,8 @@ import { LoadingState } from '@/components/ui/Loading';
 import { eur } from '@/lib/format';
 import { KpiCard, KpiGrid } from '@/components/ui/KpiCard';
 
+import { CommissionsTable } from './CommissionsTable';
+
 interface RevenueTrend {
     month: string;
     year_month: string;
@@ -26,10 +28,22 @@ interface PatientStats {
     new_patients: number;
 }
 
+// Add interface for Commission Summary
+interface CommissionSummary {
+    operator_id: string;
+    operator_name: string;
+    num_appointments: number;
+    total_gross_cents: number;
+    total_commission_cents: number;
+    total_net_cents: number;
+}
+
 export default function AdminStatsPage() {
     const [trend, setTrend] = useState<RevenueTrend[]>([]);
     const [mix, setMix] = useState<ServiceMix[]>([]);
     const [patients, setPatients] = useState<PatientStats | null>(null);
+    const [commissions, setCommissions] = useState<CommissionSummary[]>([]); // New State
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -61,8 +75,11 @@ export default function AdminStatsPage() {
             // Determine if we should filter
             const filterOpId = showMyOnly ? myOperatorId : null;
 
+            // Format current month for commissions RPC (YYYY-MM)
+            const currentYearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
             try {
-                const [trendRes, mixRes, patientsRes] = await Promise.all([
+                const [trendRes, mixRes, patientsRes, commRes] = await Promise.all([
                     supabase.rpc('admin_get_revenue_trend', { p_operator_id: filterOpId }),
                     supabase.rpc('admin_get_service_mix', {
                         p_start_date: ninetyDaysAgo.toISOString(),
@@ -73,11 +90,15 @@ export default function AdminStatsPage() {
                         p_start_date: ninetyDaysAgo.toISOString(),
                         p_end_date: today.toISOString(),
                         p_operator_id: filterOpId
+                    }),
+                    // Fetch Commissions Summary
+                    supabase.rpc('admin_month_summary', {
+                        p_year_month: currentYearMonth
                     })
                 ]);
 
-                if (trendRes.error || mixRes.error || patientsRes.error) {
-                    const msg = trendRes.error?.message || mixRes.error?.message || patientsRes.error?.message;
+                if (trendRes.error || mixRes.error || patientsRes.error || commRes.error) {
+                    const msg = trendRes.error?.message || mixRes.error?.message || patientsRes.error?.message || commRes.error?.message;
                     setError(humanError(msg || 'Errore nel caricamento statistiche'));
                 } else {
                     // CASTING STRINGADONI BIGINT IN NUMERI VERI (ESENZIALE PER I GRAFICI)
@@ -96,6 +117,22 @@ export default function AdminStatsPage() {
                     })));
 
                     setPatients(patientsRes.data?.[0] || null);
+
+                    // Set Commissions Data
+                    // Apply filtering client-side if "My Only" is active, since RPC admin_month_summary gets everyone
+                    let commData = (commRes.data || []).map((c: any) => ({
+                        ...c,
+                        num_appointments: Number(c.num_appointments || 0),
+                        total_gross_cents: Number(c.total_gross_cents || 0),
+                        total_commission_cents: Number(c.total_commission_cents || 0),
+                        total_net_cents: Number(c.total_net_cents || 0)
+                    }));
+
+                    if (showMyOnly && myOperatorId) {
+                        commData = commData.filter((c: any) => c.operator_id === myOperatorId);
+                    }
+
+                    setCommissions(commData);
                 }
             } catch (err: any) {
                 setError(humanError(err.message));
@@ -303,6 +340,9 @@ export default function AdminStatsPage() {
                     </div>
                 </div>
             </div>
+
+            {/* NEW COMMISSIONS RECAP */}
+            <CommissionsTable data={commissions} isLoading={loading} />
 
             <footer className="text-center pt-8">
                 <p className="text-[10px] text-slate-400 leading-relaxed font-black uppercase tracking-[0.2em] opacity-50">
